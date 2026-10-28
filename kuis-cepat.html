@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiznalys - Interactive Learning</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS untuk Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+            color: #334155;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        h1, h2, h3, .font-heading { font-family: 'Poppins', sans-serif; }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border-radius: 12px;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+        .btn-primary:active { transform: translateY(1px); }
+
+        .btn-secondary {
+            background: white;
+            color: #4f46e5;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            border-color: #6366f1;
+            background: #f5f3ff;
+            transform: translateY(-2px);
+        }
+
+        input, select, textarea {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            color: #334155;
+            padding: 12px 16px;
+            border-radius: 12px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .opt-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #334155;
+            border-radius: 16px;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .opt-btn:hover:not(:disabled) {
+            border-color: #6366f1;
+            background: #e0e7ff;
+            transform: scale(1.02);
+            color: #4f46e5;
+        }
+
+        .hide { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex justify-center items-start">
+
+<div id="app" class="w-full max-w-5xl space-y-6 fade-in">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-center bg-white/70 backdrop-blur-md px-6 py-4 rounded-2xl shadow-sm border border-white/50 mb-8">
+        <h1 class="text-3xl font-extrabold font-heading text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 cursor-pointer tracking-tight" onclick="showPage('home')">
+            🚀 Quiznalys
+        </h1>
+        <div id="nav-buttons" class="space-x-2 mt-4 sm:mt-0 flex flex-wrap justify-center">
+            <button onclick="showPage('login-guru')" class="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">Portal Guru</button>
+            <button onclick="showPage('login-admin')" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Portal Admin</button>
+            <a href="index.html" class="px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">🚪 Keluar</a>
+            <button id="btn-logout" onclick="logout()" class="px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors hide">Logout</button>
+        </div>
+    </header>
+
+    <!-- CONTAINER HALAMAN -->
+    <main id="main-content">
+        
+        <!-- Halaman Utama (Siswa) -->
+        <div id="page-home" class="card p-8 sm:p-12 space-y-8 fade-in">
+            <div class="text-center max-w-lg mx-auto">
+                <div class="inline-block p-4 rounded-full bg-indigo-50 mb-4">
+                    <svg class="w-12 h-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <h2 class="text-3xl font-extrabold font-heading text-slate-800 mb-2">Siap untuk Belajar?</h2>
+                <p class="text-slate-500 text-base">Pilih data dirimu di bawah ini untuk mulai mengerjakan kuis.</p>
+            </div>
+            
+            <div class="space-y-5 max-w-md mx-auto bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Pilih Kelas</label>
+                    <select id="siswa-kelas" onchange="loadSiswaOptions()"><option value="">-- Kelas --</option></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Lengkap</label>
+                    <select id="siswa-nama"><option value="">-- Nama Siswa --</option></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Mata Pelajaran</label>
+                    <select id="siswa-mapel"><option value="">-- Mapel --</option></select>
+                </div>
+                <button onclick="startQuiz()" class="w-full py-4 mt-2 font-bold text-lg btn-primary">MULAI KUIS SEKARANG</button>
+            </div>
+        </div>
+
+        <!-- Halaman Login Admin -->
+        <div id="page-login-admin" class="card p-8 max-w-md mx-auto hide relative fade-in">
+            <button onclick="showPage('home')" class="absolute top-6 left-6 text-slate-400 hover:text-indigo-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </button>
+            <div id="form-login-admin-container" class="mt-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold font-heading text-slate-800">Login Admin</h2>
+                    <p class="text-sm text-slate-500 mt-1">Masuk untuk mengelola sistem</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="admin-user" placeholder="Username">
+                    <input type="password" id="admin-pass" placeholder="Password">
+                    <button onclick="loginAdmin()" class="w-full py-3 font-bold text-lg btn-primary mt-2">Masuk</button>
+                    <p class="text-center text-sm text-slate-500 mt-4">Belum punya akun? <button onclick="toggleAdminForm()" class="text-indigo-600 font-semibold hover:underline">Daftar Admin</button></p>
+                </div>
+            </div>
+            <div id="form-reg-admin-container" class="mt-8 hide">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold font-heading text-slate-800">Daftar Admin</h2>
+                    <p class="text-sm text-slate-500 mt-1">Buat akun admin baru</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="reg-admin-user" placeholder="Buat Username">
+                    <input type="password" id="reg-admin-pass" placeholder="Buat Password">
+                    <button onclick="doRegAdmin()" class="w-full py-3 font-bold text-lg btn-primary mt-2">Daftar Sekarang</button>
+                    <p class="text-center text-sm text-slate-500 mt-4">Sudah punya akun? <button onclick="toggleAdminForm()" class="text-indigo-600 font-semibold hover:underline">Login di sini</button></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Halaman Login Guru -->
+        <div id="page-login-guru" class="card p-8 max-w-md mx-auto hide relative fade-in">
+            <button onclick="showPage('home')" class="absolute top-6 left-6 text-slate-400 hover:text-indigo-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </button>
+            <div id="form-login-guru-container" class="mt-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold font-heading text-slate-800">Portal Guru</h2>
+                    <p class="text-sm text-slate-500 mt-1">Kelola soal dan pantau nilai siswa</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="guru-user" placeholder="Username">
+                    <input type="password" id="guru-pass" placeholder="Password">
+                    <button onclick="loginGuru()" class="w-full py-3 font-bold text-lg btn-primary mt-2">Masuk</button>
+                    <p class="text-center text-sm text-slate-500 mt-4">Belum terdaftar? <button onclick="toggleGuruForm()" class="text-indigo-600 font-semibold hover:underline">Daftar Guru</button></p>
+                </div>
+            </div>
+            <div id="form-reg-guru-container" class="mt-8 hide">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold font-heading text-slate-800">Registrasi Guru</h2>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="reg-guru-nama" placeholder="Nama Lengkap (Contoh: Bpk. Gilang)">
+                    <input type="text" id="reg-guru-user" placeholder="Buat Username">
+                    <input type="password" id="reg-guru-pass" placeholder="Buat Password">
+                    <select id="reg-guru-mapel"><option value="">-- Pilih Mata Pelajaran --</option></select>
+                    <button onclick="doRegGuru()" class="w-full py-3 font-bold text-lg btn-primary mt-2">Daftar Sekarang</button>
+                    <p class="text-center text-sm text-slate-500 mt-4">Sudah punya akun? <button onclick="toggleGuruForm()" class="text-indigo-600 font-semibold hover:underline">Login di sini</button></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Admin -->
+        <div id="page-admin" class="space-y-6 hide fade-in">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-2xl font-bold font-heading text-slate-800">Dashboard Admin</h2>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <button onclick="adminTab('admin')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">👨‍💻</span> Admin</button>
+                <button onclick="adminTab('mapel')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">📚</span> Mapel</button>
+                <button onclick="adminTab('kelas')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">🏫</span> Kelas</button>
+                <button onclick="adminTab('siswa')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">🎓</span> Siswa</button>
+                <button onclick="adminTab('guru')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">👨‍🏫</span> Guru</button>
+                <button onclick="adminTab('rekap')" class="py-3 px-2 btn-secondary text-sm font-semibold flex flex-col items-center gap-1"><span class="text-xl">📊</span> Nilai</button>
+            </div>
+            
+            <div id="admin-content" class="card p-6 overflow-hidden">
+                <!-- Konten dinamis admin dirender di sini -->
+            </div>
+        </div>
+
+        <!-- Dashboard Guru -->
+        <div id="page-guru" class="space-y-6 hide fade-in">
+            <div class="bg-indigo-600 rounded-2xl p-6 text-white shadow-lg flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold font-heading">Portal Guru</h2>
+                    <p class="text-indigo-100 mt-1">Mata Pelajaran: <span id="guru-mapel-name" class="font-bold text-white bg-indigo-800/50 px-3 py-1 rounded-full ml-1"></span></p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="guruTab('soal')" class="px-5 py-2.5 bg-white text-indigo-600 font-bold rounded-xl shadow hover:bg-indigo-50 transition-colors">📝 Kelola Soal</button>
+                    <button onclick="guruTab('nilai')" class="px-5 py-2.5 bg-indigo-500 border border-indigo-400 text-white font-bold rounded-xl shadow hover:bg-indigo-400 transition-colors">📊 Nilai Siswa</button>
+                </div>
+            </div>
+            <div id="guru-content" class="card p-6">
+                <!-- Konten guru dirender di sini -->
+            </div>
+        </div>
+
+        <!-- Area Game / Kuis -->
+        <div id="page-game" class="hide space-y-6 fade-in max-w-3xl mx-auto">
+            <!-- Game HUD -->
+            <div class="flex justify-between items-center font-bold text-sm card p-4">
+                <div class="flex items-center gap-2">
+                    <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full">Soal <span id="g-curr" class="text-indigo-600">1</span>/<span id="g-total">10</span></span>
+                </div>
+                <div class="text-lg">Skor: <span id="g-score" class="text-indigo-600 font-extrabold text-2xl ml-1">0</span></div>
+                <div id="g-lives" class="text-xl tracking-widest">❤️❤️❤️</div>
+            </div>
+            
+            <!-- Timer Bar -->
+            <div class="h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                <div id="g-time" class="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all ease-linear" style="width: 100%"></div>
+            </div>
+            
+            <!-- Pertanyaan & Gambar -->
+            <div id="g-card" class="card p-6 text-center min-h-[160px] flex flex-col items-center justify-center shadow-lg border-t-4 border-t-indigo-500 space-y-4">
+                <div id="g-img-container" class="hide w-full max-h-56 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center p-2">
+                    <img id="g-img" src="" alt="Gambar Soal" class="max-h-48 object-contain rounded-lg">
+                </div>
+                <h2 id="g-question" class="text-xl sm:text-2xl font-bold text-slate-800 font-heading leading-relaxed">Pertanyaan akan muncul di sini...</h2>
+            </div>
+            
+            <!-- Opsi Jawaban -->
+            <div id="g-options" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Opsi A-D dirender di sini -->
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+/* =========================================
+   SISTEM DATABASE (LocalStorage)
+   ========================================= */
+const DB_KEY = 'quiznalys_db';
+let DB = {
+    admins: [{ user: 'admin', pass: 'admin' }],
+    mapel: ['Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Jepang', 'Matematika', 'IPAS', 'Program Web', 'Program Gim', 'Agama Islam'],
+    kelas: ['X RPL', 'XI RPL', 'XII RPL'],
+    siswa: [], 
+    gurus: [], 
+    soals: [], 
+    nilais: []
+};
+
+function initDB() {
+    const saved = localStorage.getItem(DB_KEY);
+    if(saved) DB = JSON.parse(saved);
+    else saveDB();
+}
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+
+/* =========================================
+   MANAJEMEN SESI & NAVIGASI
+   ========================================= */
+let session = { role: null, data: null };
+
+function showPage(pageId) {
+    document.querySelectorAll('#main-content > div').forEach(el => el.classList.add('hide'));
+    document.getElementById(`page-${pageId}`).classList.remove('hide');
+    document.getElementById('btn-logout').classList.toggle('hide', pageId === 'home' || pageId.startsWith('login'));
+    
+    if(pageId === 'home') initHome();
+    if(pageId === 'admin') adminTab('admin');
+    if(pageId === 'login-guru') updateRegGuruMapel();
+    if(pageId === 'guru') {
+        document.getElementById('guru-mapel-name').textContent = session.data.mapel;
+        guruTab('soal');
+    }
+}
+
+function logout() {
+    session = { role: null, data: null };
+    showPage('home');
+}
+
+/* =========================================
+   FUNGSI LOGIN & REGISTER
+   ========================================= */
+function loginAdmin() {
+    const u = document.getElementById('admin-user').value.trim();
+    const p = document.getElementById('admin-pass').value.trim();
+    const valid = DB.admins.find(a => a.user === u && a.pass === p);
+    if(valid) { session = { role: 'admin', data: valid }; showPage('admin'); document.getElementById('admin-user').value = ''; document.getElementById('admin-pass').value = ''; } 
+    else { alert('Username/Password Admin salah!'); }
+}
+
+function loginGuru() {
+    const u = document.getElementById('guru-user').value.trim();
+    const p = document.getElementById('guru-pass').value.trim();
+    const valid = DB.gurus.find(g => g.user === u && g.pass === p);
+    if(valid) { session = { role: 'guru', data: valid }; showPage('guru'); document.getElementById('guru-user').value = ''; document.getElementById('guru-pass').value = ''; } 
+    else { alert('Username/Password Guru salah!'); }
+}
+
+function toggleAdminForm() {
+    document.getElementById('form-login-admin-container').classList.toggle('hide');
+    document.getElementById('form-reg-admin-container').classList.toggle('hide');
+}
+
+function doRegAdmin() {
+    const u = document.getElementById('reg-admin-user').value.trim();
+    const p = document.getElementById('reg-admin-pass').value.trim();
+    if(!u || !p) return alert("Kolom tidak boleh kosong!");
+    if(DB.admins.find(a => a.user === u)) return alert("Username terpakai!");
+    DB.admins.push({user: u, pass: p}); saveDB();
+    alert("Akun Admin berhasil dibuat!"); toggleAdminForm();
+}
+
+function toggleGuruForm() {
+    document.getElementById('form-login-guru-container').classList.toggle('hide');
+    document.getElementById('form-reg-guru-container').classList.toggle('hide');
+}
+
+function updateRegGuruMapel() {
+    document.getElementById('reg-guru-mapel').innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>' + DB.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+
+function doRegGuru() {
+    const n = document.getElementById('reg-guru-nama').value.trim();
+    const u = document.getElementById('reg-guru-user').value.trim();
+    const p = document.getElementById('reg-guru-pass').value.trim();
+    const m = document.getElementById('reg-guru-mapel').value;
+    if(!n || !u || !p || !m) return alert("Lengkapi semua data!");
+    if(DB.gurus.find(g => g.user === u)) return alert("Username terpakai!");
+    DB.gurus.push({nama: n, user: u, pass: p, mapel: m}); saveDB();
+    alert("Akun Guru berhasil didaftar!"); toggleGuruForm();
+}
+
+/* =========================================
+   DASHBOARD ADMIN
+   ========================================= */
+function adminTab(tab) {
+    const c = document.getElementById('admin-content');
+    let html = '';
+    
+    if(tab === 'admin') {
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Daftar Admin</h3>
+            <ul class="space-y-3">
+                ${DB.admins.map((a, i) => `
+                    <li class="flex justify-between items-center bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                        <span class="font-semibold">${a.user}</span>
+                        <button onclick="delAdmin(${i})" class="text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1 rounded-lg text-sm font-bold">Hapus</button>
+                    </li>
+                `).join('')}
+            </ul>`;
+    }
+    else if(tab === 'mapel') {
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Kelola Mata Pelajaran</h3>
+            <div class="flex gap-2 mb-6">
+                <input id="new-mapel" placeholder="Nama Mapel Baru">
+                <button onclick="addMapel()" class="px-6 py-2 btn-primary">Tambah</button>
+            </div>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${DB.mapel.map((m, i) => `
+                    <li class="flex justify-between items-center bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                        <span class="font-medium text-slate-700">${m}</span>
+                        <button onclick="delMapel(${i})" class="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg">✖</button>
+                    </li>
+                `).join('')}
+            </ul>`;
+    }
+    else if(tab === 'kelas') {
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Kelola Kelas</h3>
+            <div class="flex gap-2 mb-6">
+                <input id="new-kelas" placeholder="Nama Kelas Baru (Misal: X RPL 1)">
+                <button onclick="addKelas()" class="px-6 py-2 btn-primary">Tambah</button>
+            </div>
+            <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                ${DB.kelas.map((k, i) => `
+                    <li class="flex justify-between items-center bg-indigo-50 border border-indigo-100 p-3 rounded-xl">
+                        <span class="font-bold text-indigo-700">${k}</span>
+                        <button onclick="delKelas(${i})" class="text-rose-500">✖</button>
+                    </li>
+                `).join('')}
+            </ul>`;
+    }
+    else if(tab === 'siswa') {
+        let optKelas = DB.kelas.map(k => `<option value="${k}">${k}</option>`).join('');
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Data Siswa Terdaftar (${DB.siswa.length})</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <p class="text-sm font-bold text-indigo-600 mb-3">Tambah Manual</p>
+                    <div class="space-y-3">
+                        <input id="new-siswa-nama" placeholder="Nama Siswa">
+                        <select id="new-siswa-kelas">${optKelas}</select>
+                        <button onclick="addSiswa()" class="w-full py-2.5 btn-primary text-sm">Simpan Siswa</button>
+                    </div>
+                </div>
+                <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-100">
+                    <p class="text-sm font-bold text-indigo-700 mb-2">Import via Excel (.xlsx / .csv)</p>
+                    <p class="text-xs text-indigo-600/70 mb-4">Kolom A: <b>Nama</b>, Kolom B: <b>Kelas</b></p>
+                    <input type="file" id="excel-file-siswa" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white file:text-indigo-600 hover:file:bg-slate-50 cursor-pointer mb-3">
+                    <button onclick="importExcelSiswa()" class="w-full py-2.5 bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 font-bold rounded-xl text-sm shadow-sm transition-colors">Proses Import Siswa</button>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <ul class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                    ${DB.siswa.length ? DB.siswa.map((s, i) => `
+                        <li class="flex justify-between items-center p-4 hover:bg-slate-50">
+                            <div>
+                                <p class="font-semibold text-slate-800">${s.nama}</p>
+                                <span class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">${s.kelas}</span>
+                            </div>
+                            <button onclick="delSiswa(${i})" class="text-rose-500 font-bold text-sm bg-rose-50 px-3 py-1 rounded-lg">Hapus</button>
+                        </li>
+                    `).join('') : '<li class="p-6 text-center text-slate-400">Belum ada data siswa.</li>'}
+                </ul>
+            </div>`;
+    }
+    else if(tab === 'guru') {
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Daftar Akun Guru</h3>
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${DB.gurus.map((g, i) => `
+                    <li class="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-start">
+                        <div>
+                            <p class="font-bold text-slate-800 text-lg">${g.nama}</p>
+                            <p class="text-sm text-slate-500 mb-2">Username: ${g.user}</p>
+                            <span class="inline-block text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">Mapel: ${g.mapel}</span>
+                        </div>
+                        <button onclick="delGuru(${i})" class="text-rose-500 hover:bg-rose-100 p-2 rounded-xl">✖</button>
+                    </li>
+                `).join('')}
+            </ul>`;
+    }
+    else if(tab === 'rekap') {
+        html = `<h3 class="font-bold text-lg text-slate-800 mb-4">Global Rekap Nilai Siswa</h3>
+            <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm">
+                <table class="w-full text-left bg-white text-sm">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 font-semibold text-slate-600">Siswa</th>
+                            <th class="p-4 font-semibold text-slate-600">Kelas</th>
+                            <th class="p-4 font-semibold text-slate-600">Mapel</th>
+                            <th class="p-4 font-semibold text-slate-600">Skor</th>
+                            <th class="p-4 font-semibold text-slate-600">Tanggal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${DB.nilais.sort((a,b)=>b.skor - a.skor).map(n => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-4 font-medium text-slate-800">${n.siswa}</td>
+                                <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">${n.kelas}</span></td>
+                                <td class="p-4 text-slate-600">${n.mapel}</td>
+                                <td class="p-4 font-extrabold text-indigo-600 text-lg">${n.skor}</td>
+                                <td class="p-4 text-slate-400">${n.date}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+    c.innerHTML = html;
+}
+
+function delAdmin(i) { if(DB.admins.length <= 1) return alert("Minimal 1 Admin!"); if(confirm('Hapus?')) { DB.admins.splice(i,1); saveDB(); adminTab('admin'); } }
+function addMapel() { const v = document.getElementById('new-mapel').value; if(v) { DB.mapel.push(v); saveDB(); adminTab('mapel'); } }
+function delMapel(i) { DB.mapel.splice(i,1); saveDB(); adminTab('mapel'); }
+function addKelas() { const v = document.getElementById('new-kelas').value; if(v) { DB.kelas.push(v); saveDB(); adminTab('kelas'); } }
+function delKelas(i) { DB.kelas.splice(i,1); saveDB(); adminTab('kelas'); }
+function addSiswa() { 
+    const n = document.getElementById('new-siswa-nama').value.trim(), k = document.getElementById('new-siswa-kelas').value; 
+    if(n && k) { DB.siswa.push({nama:n, kelas:k}); saveDB(); adminTab('siswa'); } else { alert("Isi data!"); }
+}
+function delSiswa(i) { DB.siswa.splice(i,1); saveDB(); adminTab('siswa'); }
+function delGuru(i) { if(confirm('Hapus?')) { DB.gurus.splice(i,1); saveDB(); adminTab('guru'); } }
+
+function importExcelSiswa() {
+    const fileInput = document.getElementById('excel-file-siswa');
+    if(!fileInput.files.length) return alert("Pilih file Excel!");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+            let count = 0;
+            rows.forEach((row, idx) => {
+                if(row.length >= 2) {
+                    let nama = row[0] ? String(row[0]).trim() : '';
+                    let kls = row[1] ? String(row[1]).trim() : '';
+                    if(idx === 0 && (nama.toLowerCase() === 'nama' || nama.toLowerCase() === 'name')) return;
+                    if(nama && kls) {
+                        let matched = DB.kelas.find(k => k.replace(/[\s\.]+/g, '').toLowerCase() === kls.replace(/[\s\.]+/g, '').toLowerCase());
+                        if(!matched) { DB.kelas.push(kls); matched = kls; }
+                        if(!DB.siswa.find(s => s.nama.toLowerCase() === nama.toLowerCase() && s.kelas.toLowerCase() === matched.toLowerCase())) {
+                            DB.siswa.push({ nama: nama, kelas: matched }); count++;
+                        }
+                    }
+                }
+            });
+            saveDB(); adminTab('siswa'); alert(`Berhasil mengimpor ${count} siswa!`);
+        } catch(err) { alert("Gagal baca file!"); }
+    };
+    reader.readAsArrayBuffer(fileInput.files[0]);
+}
+
+/* =========================================
+   DASHBOARD GURU
+   ========================================= */
+function guruTab(tab) {
+    const c = document.getElementById('guru-content');
+    const myMapel = session.data.mapel;
+    
+    if(tab === 'soal') {
+        const mySoal = DB.soals.filter(s => s.mapel === myMapel);
+        c.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-indigo-800 mb-4">Buat Soal Manual (4 Opsi)</h3>
+                    <div class="space-y-3">
+                        <textarea id="g-q" class="w-full bg-white border-2 border-indigo-100 p-3 rounded-xl text-slate-800" rows="2" placeholder="Pertanyaan..."></textarea>
+                        <input id="g-img" placeholder="Link Gambar (Opsional, misal: https://...)">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input id="g-a" placeholder="Opsi A (BENAR)*" class="border-emerald-300 bg-emerald-50/50 font-medium">
+                            <input id="g-b" placeholder="Opsi B (Salah)">
+                            <input id="g-c" placeholder="Opsi C (Salah)">
+                            <input id="g-d" placeholder="Opsi D (Salah)">
+                        </div>
+                        <button onclick="addSoal()" class="w-full py-3 btn-primary font-bold text-sm mt-2">Simpan Soal</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">Import Soal via Excel</h3>
+                    <p class="text-xs text-slate-500 mb-3">Kolom A: Pertanyaan | Kolom B: Opsi Benar | Kolom C-E: Pengecoh | Kolom F: Link Gambar (Opsional)</p>
+                    <input type="file" id="excel-file-soal" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white file:text-indigo-600 hover:file:bg-slate-100 cursor-pointer mb-4 border border-slate-200 rounded-xl p-1 bg-white">
+                    <button onclick="importExcelSoal()" class="w-full py-3 bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-50 font-bold rounded-xl text-sm shadow-sm transition-colors">Proses Import Soal Excel</button>
+                </div>
+            </div>
+            
+            <h3 class="font-bold text-xl text-slate-800 mb-4">Bank Soal Saya <span class="bg-indigo-100 text-indigo-700 text-sm px-3 py-1 rounded-full ml-2">${mySoal.length} Soal</span></h3>
+            <div class="grid grid-cols-1 gap-4">
+                ${mySoal.length ? mySoal.map((s, i) => `
+                    <div class="border border-slate-200 bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-start justify-between">
+                        <div class="space-y-3 w-full">
+                            <div class="flex justify-between items-start">
+                                <p class="font-bold text-slate-800 text-base leading-snug">${i+1}. ${s.q}</p>
+                                <button onclick="delSoal(${i})" class="text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-colors shrink-0 ml-4">Hapus</button>
+                            </div>
+                            ${s.image ? `<img src="${s.image}" class="h-32 object-contain rounded-lg border border-slate-100 bg-slate-50 p-1">` : ''}
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                                <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-lg font-semibold flex items-center gap-1"><span class="bg-emerald-500 text-white px-1.5 rounded-sm">A</span> ${s.options[0]} (Benar)</div>
+                                <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">B. ${s.options[1]}</div>
+                                <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">C. ${s.options[2]}</div>
+                                <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">D. ${s.options[3]}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('') : '<div class="text-center p-8 bg-slate-50 rounded-2xl text-slate-400 border border-dashed border-slate-200">Belum ada soal.</div>'}
+            </div>`;
+    }
+    else if(tab === 'nilai') {
+        const myNilai = DB.nilais.map((n, idx) => ({ ...n, originalIndex: idx })).filter(n => n.mapel === myMapel).sort((a,b) => b.skor - a.skor);
+        c.innerHTML = `
+            <h3 class="font-bold text-xl text-slate-800 mb-6">Laporan Nilai Kelas</h3>
+            <div class="overflow-hidden border border-slate-200 rounded-2xl shadow-sm bg-white">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 font-semibold text-slate-600">Peringkat</th>
+                            <th class="p-4 font-semibold text-slate-600">Nama Siswa</th>
+                            <th class="p-4 font-semibold text-slate-600">Kelas</th>
+                            <th class="p-4 font-semibold text-slate-600">Skor Akhir</th>
+                            <th class="p-4 font-semibold text-slate-600">Tanggal</th>
+                            <th class="p-4 font-semibold text-center text-slate-600">Opsi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${myNilai.length ? myNilai.map((n, i) => `
+                            <tr class="hover:bg-indigo-50/50">
+                                <td class="p-4 font-bold ${i===0?'text-amber-500 text-lg':i===1?'text-slate-400 text-lg':i===2?'text-amber-700 text-lg':'text-slate-500'}">#${i+1}</td>
+                                <td class="p-4 font-semibold text-slate-800">${n.siswa}</td>
+                                <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">${n.kelas}</span></td>
+                                <td class="p-4"><span class="bg-indigo-100 text-indigo-700 font-extrabold px-3 py-1 rounded-full text-base">${n.skor}</span></td>
+                                <td class="p-4 text-slate-400 text-xs">${n.date}</td>
+                                <td class="p-4 text-center">
+                                    <button onclick="delNilai(${n.originalIndex})" class="text-rose-500 hover:bg-rose-100 px-2 py-1 rounded-md text-xs font-bold transition-colors">Reset</button>
+                                </td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="6" class="p-8 text-center text-slate-400">Belum ada nilai siswa yang tersimpan.</td></tr>`}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+}
+
+function addSoal() {
+    const q = document.getElementById('g-q').value, a = document.getElementById('g-a').value;
+    const b = document.getElementById('g-b').value, c = document.getElementById('g-c').value, d = document.getElementById('g-d').value;
+    const img = document.getElementById('g-img').value.trim();
+    if(!q || !a || !b || !c || !d) return alert("Lengkapi pertanyaan dan opsi A-D!");
+    DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d], correctAnswer: a, image: img }); saveDB(); guruTab('soal');
+}
+
+function importExcelSoal() {
+    const fileInput = document.getElementById('excel-file-soal');
+    if(!fileInput.files.length) return alert("Pilih file Excel soal terlebih dahulu!");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+            let count = 0;
+            rows.forEach((row, idx) => {
+                if(row.length >= 5) {
+                    let q = row[0] ? String(row[0]).trim() : '';
+                    let a = row[1] ? String(row[1]).trim() : '';
+                    let b = row[2] ? String(row[2]).trim() : '';
+                    let c = row[3] ? String(row[3]).trim() : '';
+                    let d = row[4] ? String(row[4]).trim() : '';
+                    let img = row[5] ? String(row[5]).trim() : '';
+                    
+                    if(idx === 0 && (q.toLowerCase() === 'pertanyaan' || q.toLowerCase() === 'question')) return;
+                    if(q && a && b && c && d) {
+                        DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d], correctAnswer: a, image: img });
+                        count++;
+                    }
+                }
+            });
+            saveDB(); guruTab('soal'); alert(`Berhasil mengimpor ${count} soal baru!`);
+        } catch(err) { alert("Gagal membaca file soal!"); }
+    };
+    reader.readAsArrayBuffer(fileInput.files[0]);
+}
+
+function delSoal(index) {
+    let r = -1, count = -1;
+    for(let i=0; i<DB.soals.length; i++) { if(DB.soals[i].mapel === session.data.mapel) { count++; if(count === index) { r = i; break; } } }
+    if(r > -1) { DB.soals.splice(r, 1); saveDB(); guruTab('soal'); }
+}
+function delNilai(i) { if(confirm("Hapus data nilai siswa ini?")) { DB.nilais.splice(i, 1); saveDB(); guruTab('nilai'); } }
+
+/* =========================================
+   SISTEM SISWA & ENGINE GAME (Skor Presisi Berbasis Waktu)
+   ========================================= */
+function initHome() {
+    document.getElementById('siswa-kelas').innerHTML = '<option value="">-- Pilih Kelas --</option>' + DB.kelas.map(k => `<option value="${k}">${k}</option>`).join('');
+    document.getElementById('siswa-mapel').innerHTML = '<option value="">-- Pilih Mapel --</option>' + DB.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
+    document.getElementById('siswa-nama').innerHTML = '<option value="">-- Pilih Nama --</option>';
+}
+function loadSiswaOptions() {
+    const kls = document.getElementById('siswa-kelas').value;
+    const filtered = DB.siswa.filter(s => s.kelas.replace(/[\s\.]+/g, '').toLowerCase() === kls.replace(/[\s\.]+/g, '').toLowerCase());
+    document.getElementById('siswa-nama').innerHTML = '<option value="">-- Pilih Nama --</option>' + filtered.map(s => `<option value="${s.nama}">${s.nama}</option>`).join('');
+}
+
+let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 15, interval: null, lock: false };
+
+function startQuiz() {
+    const kls = document.getElementById('siswa-kelas').value, nma = document.getElementById('siswa-nama').value, mpl = document.getElementById('siswa-mapel').value;
+    if(!kls || !nma || !mpl) return alert("Ups! Lengkapi pilihan data dirimu dulu ya.");
+    const questions = DB.soals.filter(s => s.mapel === mpl);
+    if(questions.length === 0) return alert(`Waduh, belum ada soal untuk Mapel ${mpl}.`);
+    
+    session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
+    G.qList = questions.sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ q: q.q, opts: [...q.options].sort(() => Math.random() - 0.5), correct: q.correctAnswer, image: q.image }));
+    G.curr = 0; G.score = 0; G.lives = 3;
+    
+    showPage('game'); renderQuestionPG();
+}
+
+function renderQuestionPG() {
+    if(G.curr >= G.qList.length || G.lives <= 0) return endQuizPG();
+    G.lock = false; 
+    G.timer = 15.0; // Waktu mundur 15 detik per soal
+    
+    document.getElementById('g-curr').textContent = G.curr + 1;
+    document.getElementById('g-total').textContent = G.qList.length;
+    document.getElementById('g-score').textContent = Math.round(G.score);
+    document.getElementById('g-lives').textContent = '❤️'.repeat(G.lives) + '🖤'.repeat(3 - G.lives);
+    
+    const qData = G.qList[G.curr];
+    document.getElementById('g-question').textContent = qData.q;
+    
+    const imgContainer = document.getElementById('g-img-container');
+    const imgEl = document.getElementById('g-img');
+    if(qData.image) {
+        imgEl.src = qData.image;
+        imgContainer.classList.remove('hide');
+    } else {
+        imgContainer.classList.add('hide');
+        imgEl.src = '';
+    }
+    
+    const card = document.getElementById('g-card');
+    card.classList.remove('shake');
+
+    const colors = ['bg-rose-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500'];
+    
+    document.getElementById('g-options').innerHTML = qData.opts.map((opt, i) => `
+        <button onclick="checkAnswerPG('${opt.replace(/'/g, "\\'")}')" class="opt-btn relative group overflow-hidden p-1">
+            <div class="absolute inset-0 w-3 ${colors[i]} group-hover:w-full transition-all duration-300 ease-out z-0 opacity-10 group-hover:opacity-100"></div>
+            <div class="relative z-10 p-4 sm:p-5 text-left flex items-center gap-3">
+                <div class="${colors[i]} text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 group-hover:bg-white group-hover:text-${colors[i].replace('bg-','')} transition-colors">${['A','B','C','D'][i]}</div>
+                <span class="text-base sm:text-lg group-hover:text-white transition-colors break-words w-full">${opt}</span>
+            </div>
+        </button>
+    `).join('');
+    
+    clearInterval(G.interval); 
+    // Hitung mundur presisi setiap 0.05 detik agar pergerakan waktu & poin sangat akurat
+    G.interval = setInterval(tickPG, 50);
+}
+
+function tickPG() {
+    G.timer -= 0.05;
+    const pct = Math.max(0, (G.timer / 15) * 100);
+    const bar = document.getElementById('g-time');
+    bar.style.width = pct + '%';
+    bar.className = G.timer < 5 ? 'h-full transition-all ease-linear bg-rose-500' : 'h-full transition-all ease-linear bg-gradient-to-r from-cyan-400 to-indigo-500';
+    
+    if(G.timer <= 0) checkAnswerPG(null);
+}
+
+function checkAnswerPG(selectedOpt) {
+    if(G.lock) return; 
+    G.lock = true; 
+    clearInterval(G.interval);
+    
+    const qData = G.qList[G.curr];
+    const isCorrect = selectedOpt === qData.correct;
+    
+    document.querySelectorAll('.opt-btn').forEach(b => {
+        b.className = 'opt-btn relative p-1';
+        const textSpan = b.querySelector('span').textContent;
+        const innerDiv = b.querySelector('.z-10');
+        const iconDiv = b.querySelector('.rounded-full');
+        
+        if(textSpan === qData.correct) {
+            b.style.backgroundColor = '#10b981'; b.style.borderColor = '#059669'; b.style.color = 'white';
+            iconDiv.style.backgroundColor = 'white'; iconDiv.style.color = '#10b981';
+            innerDiv.classList.add('text-white');
+        } else if(selectedOpt && textSpan === selectedOpt) {
+            b.style.backgroundColor = '#ef4444'; b.style.borderColor = '#dc2626'; b.style.color = 'white';
+            iconDiv.style.backgroundColor = 'white'; iconDiv.style.color = '#ef4444';
+            innerDiv.classList.add('text-white');
+        } else {
+            b.style.opacity = '0.4';
+        }
+    });
+    
+    if(isCorrect) {
+        // RUMUS SKOR PRESISI WAKTU:
+        // Poin dasar = 100. Poin kecepatan maksimal = hingga 100 tambahan berdasarkan sisa detik.
+        // Contoh: Jika sisa waktu 14 detik, dapat ekstra besar. Jika tersisa 1 detik, ekstra kecil.
+        let timeBonus = Math.max(0, Math.round(G.timer * 10)); 
+        G.score += (100 + timeBonus);
+    } else {
+        G.lives--; 
+        document.getElementById('g-card').classList.add('shake');
+    }
+    
+    document.getElementById('g-score').textContent = Math.round(G.score);
+    setTimeout(() => { G.curr++; renderQuestionPG(); }, 1800);
+}
+
+function endQuizPG() {
+    clearInterval(G.interval);
+    let finalScore = Math.round(G.score);
+    DB.nilais.push({ siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, skor: finalScore, date: new Date().toLocaleDateString() }); 
+    saveDB();
+    
+    document.getElementById('page-game').innerHTML = `
+        <div class="card p-10 text-center space-y-6 max-w-lg mx-auto fade-in">
+            <div class="inline-block p-4 rounded-full ${G.lives > 0 ? 'bg-emerald-100 text-emerald-500' : 'bg-rose-100 text-rose-500'} mb-2">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${G.lives > 0 ? 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'}"></path></svg>
+            </div>
+            <h2 class="text-4xl font-extrabold font-heading text-slate-800">${G.lives > 0 ? 'Luar Biasa!' : 'Game Over!'}</h2>
+            <p class="text-slate-500">Skor Akhir Kamu (Dengan Bonus Kecepatan):</p>
+            <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500 drop-shadow-sm pb-2">${finalScore}</div>
+            <button onclick="window.location.reload()" class="w-full py-4 mt-6 btn-primary text-lg">Selesai & Kembali</button>
+        </div>`;
+}
+
+initDB(); showPage('home');
+</script>
+</body>
+</html>
