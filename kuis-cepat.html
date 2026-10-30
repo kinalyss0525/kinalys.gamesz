@@ -11,6 +11,10 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- Firebase SDK (Compat Version untuk kemudahan Realtime Database) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
     <style>
         body {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
@@ -108,7 +112,6 @@
         <div id="nav-buttons" class="space-x-2 mt-4 sm:mt-0 flex flex-wrap justify-center">
             <button onclick="showPage('login-guru')" class="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">Portal Guru</button>
             <button onclick="showPage('login-admin')" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Portal Admin</button>
-            <a href="index.html" class="px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">🚪 Keluar</a>
             <button id="btn-logout" onclick="logout()" class="px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors hide">Logout</button>
         </div>
     </header>
@@ -277,9 +280,22 @@
 
 <script>
 /* =========================================
-   SISTEM DATABASE (LocalStorage)
+   SISTEM DATABASE (FIREBASE REALTIME DATABASE)
    ========================================= */
-const DB_KEY = 'quiznalys_db';
+const firebaseConfig = {
+  apiKey: "AIzaSyCGIF4-edfqvuj9e9zxw2_E1CX1Q8ErKQ",
+  authDomain: "quiznalys.firebaseapp.com",
+  databaseURL: "https://quiznalys-default-rtdb.firebaseio.com",
+  projectId: "quiznalys",
+  storageBucket: "quiznalys.appspot.com",
+  messagingSenderId: "274630398381",
+  appId: "1:274630398381:web:d1431ecdd0832840c4d124"
+};
+
+// Inisialisasi Firebase
+firebase.initializeApp(firebaseConfig);
+const dbRef = firebase.database().ref('quiznalys_data');
+
 let DB = {
     admins: [{ user: 'admin', pass: 'admin' }],
     mapel: ['Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Jepang', 'Matematika', 'IPAS', 'Program Web', 'Program Gim', 'Agama Islam'],
@@ -290,12 +306,44 @@ let DB = {
     nilais: []
 };
 
+// Sinkronisasi Real-Time dengan Firebase
 function initDB() {
-    const saved = localStorage.getItem(DB_KEY);
-    if(saved) DB = JSON.parse(saved);
-    else saveDB();
+    dbRef.on('value', (snapshot) => {
+        const serverData = snapshot.val();
+        if (serverData) {
+            DB = serverData;
+            // Pastikan struktur dasar aman jika ada yang kosong di server
+            if(!DB.admins) DB.admins = [{ user: 'admin', pass: 'admin' }];
+            if(!DB.mapel) DB.mapel = [];
+            if(!DB.kelas) DB.kelas = [];
+            if(!DB.siswa) DB.siswa = [];
+            if(!DB.gurus) DB.gurus = [];
+            if(!DB.soals) DB.soals = [];
+            if(!DB.nilais) DB.nilais = [];
+        } else {
+            saveDB(); // Simpan data default awal jika database masih kosong
+        }
+        // Refresh tampilan halaman aktif jika terjadi perubahan data dari device lain secara real-time
+        refreshActivePage();
+    });
 }
-function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+
+function saveDB() {
+    dbRef.set(DB);
+}
+
+function refreshActivePage() {
+    const activeAdmin = document.getElementById('page-admin');
+    const activeGuru = document.getElementById('page-guru');
+    const activeHome = document.getElementById('page-home');
+    
+    if(activeAdmin && !activeAdmin.classList.contains('hide')) {
+        // Pertahankan tab admin yang sedang dibuka jika memungkinkan
+    }
+    if(activeHome && !activeHome.classList.contains('hide')) {
+        initHome();
+    }
+}
 
 /* =========================================
    MANAJEMEN SESI & NAVIGASI
@@ -484,7 +532,7 @@ function adminTab(tab) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        ${DB.nilais.sort((a,b)=>b.skor - a.skor).map(n => `
+                        ${(DB.nilais || []).sort((a,b)=>b.skor - a.skor).map(n => `
                             <tr class="hover:bg-slate-50">
                                 <td class="p-4 font-medium text-slate-800">${n.siswa}</td>
                                 <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">${n.kelas}</span></td>
@@ -550,7 +598,7 @@ function guruTab(tab) {
     const myMapel = session.data.mapel;
     
     if(tab === 'soal') {
-        const mySoal = DB.soals.filter(s => s.mapel === myMapel);
+        const mySoal = (DB.soals || []).filter(s => s.mapel === myMapel);
         c.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div class="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl">
@@ -598,7 +646,7 @@ function guruTab(tab) {
             </div>`;
     }
     else if(tab === 'nilai') {
-        const myNilai = DB.nilais.map((n, idx) => ({ ...n, originalIndex: idx })).filter(n => n.mapel === myMapel).sort((a,b) => b.skor - a.skor);
+        const myNilai = (DB.nilais || []).map((n, idx) => ({ ...n, originalIndex: idx })).filter(n => n.mapel === myMapel).sort((a,b) => b.skor - a.skor);
         c.innerHTML = `
             <h3 class="font-bold text-xl text-slate-800 mb-6">Laporan Nilai Kelas</h3>
             <div class="overflow-hidden border border-slate-200 rounded-2xl shadow-sm bg-white">
@@ -637,7 +685,10 @@ function addSoal() {
     const b = document.getElementById('g-b').value, c = document.getElementById('g-c').value, d = document.getElementById('g-d').value;
     const img = document.getElementById('g-img').value.trim();
     if(!q || !a || !b || !c || !d) return alert("Lengkapi pertanyaan dan opsi A-D!");
-    DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d], correctAnswer: a, image: img }); saveDB(); guruTab('soal');
+    if(!DB.soals) DB.soals = [];
+    DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d], correctAnswer: a, image: img }); 
+    saveDB(); 
+    guruTab('soal');
 }
 
 function importExcelSoal() {
@@ -650,6 +701,7 @@ function importExcelSoal() {
             const workbook = XLSX.read(data, { type: 'array' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
             let count = 0;
+            if(!DB.soals) DB.soals = [];
             rows.forEach((row, idx) => {
                 if(row.length >= 5) {
                     let q = row[0] ? String(row[0]).trim() : '';
@@ -689,7 +741,7 @@ function initHome() {
 }
 function loadSiswaOptions() {
     const kls = document.getElementById('siswa-kelas').value;
-    const filtered = DB.siswa.filter(s => s.kelas.replace(/[\s\.]+/g, '').toLowerCase() === kls.replace(/[\s\.]+/g, '').toLowerCase());
+    const filtered = (DB.siswa || []).filter(s => s.kelas.replace(/[\s\.]+/g, '').toLowerCase() === kls.replace(/[\s\.]+/g, '').toLowerCase());
     document.getElementById('siswa-nama').innerHTML = '<option value="">-- Pilih Nama --</option>' + filtered.map(s => `<option value="${s.nama}">${s.nama}</option>`).join('');
 }
 
@@ -698,7 +750,7 @@ let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 15, interval: null, loc
 function startQuiz() {
     const kls = document.getElementById('siswa-kelas').value, nma = document.getElementById('siswa-nama').value, mpl = document.getElementById('siswa-mapel').value;
     if(!kls || !nma || !mpl) return alert("Ups! Lengkapi pilihan data dirimu dulu ya.");
-    const questions = DB.soals.filter(s => s.mapel === mpl);
+    const questions = (DB.soals || []).filter(s => s.mapel === mpl);
     if(questions.length === 0) return alert(`Waduh, belum ada soal untuk Mapel ${mpl}.`);
     
     session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
@@ -711,7 +763,7 @@ function startQuiz() {
 function renderQuestionPG() {
     if(G.curr >= G.qList.length || G.lives <= 0) return endQuizPG();
     G.lock = false; 
-    G.timer = 15.0; // Waktu mundur 15 detik per soal
+    G.timer = 15.0; 
     
     document.getElementById('g-curr').textContent = G.curr + 1;
     document.getElementById('g-total').textContent = G.qList.length;
@@ -747,7 +799,6 @@ function renderQuestionPG() {
     `).join('');
     
     clearInterval(G.interval); 
-    // Hitung mundur presisi setiap 0.05 detik agar pergerakan waktu & poin sangat akurat
     G.interval = setInterval(tickPG, 50);
 }
 
@@ -789,9 +840,6 @@ function checkAnswerPG(selectedOpt) {
     });
     
     if(isCorrect) {
-        // RUMUS SKOR PRESISI WAKTU:
-        // Poin dasar = 100. Poin kecepatan maksimal = hingga 100 tambahan berdasarkan sisa detik.
-        // Contoh: Jika sisa waktu 14 detik, dapat ekstra besar. Jika tersisa 1 detik, ekstra kecil.
         let timeBonus = Math.max(0, Math.round(G.timer * 10)); 
         G.score += (100 + timeBonus);
     } else {
@@ -806,6 +854,7 @@ function checkAnswerPG(selectedOpt) {
 function endQuizPG() {
     clearInterval(G.interval);
     let finalScore = Math.round(G.score);
+    if(!DB.nilais) DB.nilais = [];
     DB.nilais.push({ siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, skor: finalScore, date: new Date().toLocaleDateString() }); 
     saveDB();
     
