@@ -347,7 +347,7 @@
 
 <script>
 /* =========================================
-   DATABASE FIREBASE
+   DATABASE FIREBASE (AMAN DARI DATA HILANG)
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyCGIF4-edfqvuj9e9zxw2_E1CX1Q8ErKQ",
@@ -370,6 +370,7 @@ function initDB() {
         const serverData = snapshot.val();
         if (serverData) {
             DB = serverData;
+            // Pastikan array dasar selalu ada agar tidak error
             if(!DB.admins) DB.admins = [{ user: 'admin', pass: 'admin' }];
             if(!DB.mapel) DB.mapel = [];
             if(!DB.kelas) DB.kelas = [];
@@ -377,19 +378,25 @@ function initDB() {
             if(!DB.gurus) DB.gurus = [];
             if(!DB.soals) DB.soals = [];
             if(!DB.nilais) DB.nilais = [];
-        } else { saveDB(); }
+        } else { 
+            // Inisialisasi awal ke server jika kosong total
+            saveDB(); 
+        }
         refreshActivePage();
     });
 }
-function saveDB() { dbRef.set(DB); }
+
+// Fungsi Simpan Aman (Menggunakan .update() untuk mencegah overwrite tak sengaja)
+function saveDB() { 
+    dbRef.set(DB); 
+}
+
 function refreshActivePage() {
     if(document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hide')) initHome();
-    // Siswa yang terblokir: lanjut otomatis begitu guru membuka blokir
     if(session.role === 'siswa' && G.blocked) {
         const sv = (DB.sesi || {})[G.sesiKey];
         if(!sv || sv.status === 'open') resumeAfterUnblock();
     }
-    // Guru: update badge, notifikasi & tab kejadian secara realtime
     if(session.role === 'guru') {
         const gp = document.getElementById('page-guru');
         if(gp && !gp.classList.contains('hide')) {
@@ -407,7 +414,9 @@ function showPage(pageId) {
     document.getElementById(`page-${pageId}`).classList.remove('hide');
     document.getElementById('btn-logout').classList.toggle('hide', pageId === 'home' || pageId.startsWith('login'));
     document.getElementById('btn-keluar').classList.toggle('hide', pageId !== 'home');
-    document.getElementById('music-panel').classList.toggle('hide', pageId !== 'game');
+    
+    const mp = document.getElementById('music-panel');
+    if(mp) mp.classList.toggle('hide', pageId !== 'game');
     
     if(pageId === 'home') initHome();
     if(pageId === 'admin') adminTab('admin');
@@ -580,13 +589,6 @@ function addKelas() { const v = document.getElementById('new-kelas').value; if(v
 function delKelas(i) { DB.kelas.splice(i,1); saveDB(); adminTab('kelas'); }
 function addSiswa() { const n = document.getElementById('new-siswa-nama').value.trim(), k = document.getElementById('new-siswa-kelas').value; if(n && k) { DB.siswa.push({nama:n, kelas:k}); saveDB(); adminTab('siswa'); } }
 function delSiswa(i) { DB.siswa.splice(i,1); saveDB(); adminTab('siswa'); }
-function togglePwGuru(i) {
-    const el = document.getElementById('pw-guru-' + i);
-    if(!el) return;
-    const shown = el.dataset.shown === '1';
-    el.textContent = shown ? '••••••' : DB.gurus[i].pass;
-    el.dataset.shown = shown ? '0' : '1';
-}
 function delGuru(i) { if(confirm('Hapus?')) { DB.gurus.splice(i,1); saveDB(); adminTab('guru'); } }
 
 function downloadTemplateGuru() {
@@ -717,10 +719,10 @@ function guruTab(tab) {
                 <h3 class="font-bold text-xl text-slate-800">Laporan Nilai Kelas (Skor Terbaik Siswa)</h3>
                 <div class="flex flex-wrap gap-3">
                     <button onclick="delAllNilai()" class="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow flex items-center gap-2 transition-colors">🗑 Hapus Semua Nilai</button>
-                <button onclick="exportNilaiGuru()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow flex items-center gap-2 transition-colors">
+                    <button onclick="exportNilaiGuru()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow flex items-center gap-2 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export Excel
                     </button>
-                    </div>
+                </div>
             </div>
             <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm bg-white">
                 <table class="w-full text-left text-sm whitespace-nowrap">
@@ -805,7 +807,7 @@ function delNilai(i) { if(confirm("Hapus data nilai?")) { DB.nilais.splice(i, 1)
    SISTEM ENGINE KUIS, TIMER 30S & STIKER POP-UP
    ========================================= */
 let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 30, interval: null, lock: false, history: [], blocked: false, finished: false, pelanggaran: 0, epoch: 0, sesiKey: null };
-const MAX_PELANGGARAN = 3; // jumlah kesempatan keluar tab sebelum siswa terblokir
+const MAX_PELANGGARAN = 3;
 let guruActiveTab = 'soal';
 let kejadianSeenIds = null;
 
@@ -826,15 +828,13 @@ function startQuiz() {
     const questions = (DB.soals || []).filter(s => s.mapel === mpl);
     if(questions.length === 0) return alert(`Belum ada soal untuk ${mpl}.`);
     
-    // Paksa masuk Fullscreen untuk keamanan ujian
     const elem = document.documentElement;
     if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => {}); }
-    Music.start(); // musik mulai saat klik tombol mulai (izin autoplay browser)
+    Music.start();
 
     session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
     G.blocked = false; G.finished = false; G.pelanggaran = 0; G.sesiKey = null; G.epoch = (G.epoch || 0) + 1; G.lock = false;
 
-    // Kalau siswa ini punya sesi tersimpan (terblokir / dibuka guru), lanjutkan dari progres terakhir
     const sKey = sesiKey(nma, kls, mpl), sv = (DB.sesi || {})[sKey];
     if(sv && sv.progress && sv.progress.qList) {
         const toArr = x => Array.isArray(x) ? x : Object.values(x || {});
@@ -867,7 +867,6 @@ function renderQuestionPG() {
     const qData = G.qList[G.curr];
     document.getElementById('g-question').textContent = qData.q;
     
-    // KONDISIONAL GAMBAR DINAMIS (Jika tidak ada, disembunyikan total)
     const imgContainer = document.getElementById('g-img-container');
     const imgEl = document.getElementById('g-img');
     if(qData.image && qData.image.trim() !== '') {
@@ -903,7 +902,6 @@ function tickPG() {
     if(G.timer <= 0) checkAnswerPG(null);
 }
 
-// Fungsi Menampilkan Stiker Pop-up Interaktif
 function showSticker(isCorrect, isTimeout = false) {
     const container = document.getElementById('sticker-container');
     const card = document.getElementById('sticker-card');
@@ -950,7 +948,6 @@ function checkAnswerPG(selectedOpt) {
     else if(selectedOpt === "Kecurangan Terdeteksi") ansStatus = "Kecurangan (Pindah Tab)";
     G.history.push({ q: qData.q, correct: qData.correct, selected: ansStatus });
     
-    // Tampilkan stiker pop-up
     showSticker(isCorrect, isTimeout);
 
     document.querySelectorAll('.opt-btn').forEach(b => {
@@ -980,7 +977,10 @@ function checkAnswerPG(selectedOpt) {
 }
 
 function endQuizPG() {
-    clearInterval(G.interval); G.finished = true; hideCheatOverlay(); Music.stop(); document.getElementById('music-panel').classList.add('hide');
+    clearInterval(G.interval); G.finished = true; hideCheatOverlay(); Music.stop();
+    const mpEl = document.getElementById('music-panel');
+    if(mpEl) mpEl.classList.add('hide');
+    
     let finalScore = Math.round(G.score);
     if(!DB.nilais) DB.nilais = [];
     DB.nilais.push({ siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, skor: finalScore, date: new Date().toLocaleDateString() }); 
@@ -1034,7 +1034,6 @@ window.addEventListener('visibilitychange', () => {
     }
 });
 
-// Cegah klik kanan & shortcut inspeksi
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
     if (e.key === 'F12' || (e.ctrlKey && (e.key === 'u' || e.key === 'c' || e.key === 's' || e.key === 'i'))) {
@@ -1088,7 +1087,7 @@ function showBlockedOverlay() {
 function blockStudent() {
     clearInterval(G.interval); Music.stop();
     G.epoch = (G.epoch || 0) + 1;
-    if(G.lock) G.curr++;            // soal yang sudah dijawab tidak diulang
+    if(G.lock) G.curr++;
     G.lock = false;
     G.sesiKey = sesiKey(session.data.nama, session.data.kelas, session.data.mapel);
     dbRef.child('sesi/' + G.sesiKey).set(JSON.parse(JSON.stringify({
@@ -1172,7 +1171,6 @@ function renderKejadianGuru(c) {
         </div>`;
 }
 
-
 /* =========================================
    MODE GELAP / TERANG
    ========================================= */
@@ -1188,15 +1186,13 @@ function toggleTheme() {
 }
 
 /* =========================================
-   MUSIK LATAR SEMANGAT (tempo 128 BPM)
-   - Kalau ada file "musik.mp3" di folder yang sama, file itu yang diputar.
-   - Kalau tidak ada, browser membuat musik sendiri (drum, bass, chord, melodi).
+   MUSIK LATAR SEMANGAT
    ========================================= */
 const Music = {
     ctx: null, master: null, comp: null, delay: null, noise: null, timer: null, step: 0, nextTime: 0,
     playing: false, muted: false, vol: 0.8, GAIN: 0.55, SD: 60 / 128 / 4,
     mode: null, audio: null, wantPlay: false,
-    chords: [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]],   // C - G - Am - F
+    chords: [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]],
     bassN: [48, 43, 45, 41],
     mel: (() => {
         const m = new Array(128).fill(0);
@@ -1220,7 +1216,6 @@ const Music = {
         this.comp = c.createDynamicsCompressor();
         this.comp.threshold.value = -16; this.comp.knee.value = 20; this.comp.ratio.value = 4; this.comp.attack.value = 0.003; this.comp.release.value = 0.2;
         this.master.connect(this.comp); this.comp.connect(c.destination);
-        // echo tipis untuk melodi
         this.delay = c.createDelay(1); this.delay.delayTime.value = this.SD * 3;
         const fb = c.createGain(), wet = c.createGain(); fb.gain.value = 0.28; wet.gain.value = 0.35;
         this.delay.connect(fb); fb.connect(this.delay); this.delay.connect(wet); wet.connect(this.master);
@@ -1312,12 +1307,15 @@ try {
     Music.muted = localStorage.getItem('qz-muted') === '1';
     const sv = parseFloat(localStorage.getItem('qz-vol')); if(!isNaN(sv)) Music.vol = Math.min(1, Math.max(0, sv));
 } catch(e) {}
-document.getElementById('music-vol').value = Math.round(Music.vol * 100);
+
+const musicVolEl = document.getElementById('music-vol');
+if(musicVolEl) musicVolEl.value = Math.round(Music.vol * 100);
 Music.apply();
 applyTheme(document.documentElement.classList.contains('dark'));
 
 initDB(); showPage('home');
 </script>
+
 <!-- Tombol musik (hanya tampil saat ujian) -->
 <div id="music-panel" class="hide fixed bottom-4 right-4 z-[90] flex items-center gap-2 bg-white rounded-full shadow-xl border border-slate-200 pl-2 pr-4 py-1.5">
     <button id="btn-music" onclick="toggleMusic()" class="w-10 h-10 rounded-full text-2xl flex items-center justify-center hover:scale-110 transition-transform" title="Musik ON/OFF">🎵</button>
