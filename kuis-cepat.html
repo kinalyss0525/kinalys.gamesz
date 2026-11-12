@@ -426,7 +426,16 @@ function adminTab(tab) {
     }
     else if(tab === 'guru') {
         html = `<h3 class="font-bold text-lg mb-4">Daftar Akun Guru</h3>
-            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div class="space-y-1"><p class="text-sm text-slate-500">Nama Lengkap: <span class="font-bold text-slate-800">${g.nama}</span></p><p class="text-sm text-slate-500">Username: <span class="font-semibold text-slate-800">${g.user}</span></p><p class="text-sm text-slate-500">Password: <span class="font-mono font-semibold text-slate-800">${g.pass}</span></p><p class="text-sm text-slate-500">Mata Pelajaran: <span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></p></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>`;
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div class="space-y-1"><p class="text-sm text-slate-500">Nama Lengkap: <span class="font-bold text-slate-800">${g.nama}</span></p><p class="text-sm text-slate-500">Username: <span class="font-semibold text-slate-800">${g.user}</span></p><p class="text-sm text-slate-500">Password: <span class="font-mono font-semibold text-slate-800">${g.pass}</span></p><p class="text-sm text-slate-500">Mata Pelajaran: <span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></p></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>
+            <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mt-6">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+                    <p class="text-sm font-bold text-indigo-700">Import Guru via Excel</p>
+                    <button onclick="downloadTemplateGuru()" class="text-xs font-bold text-indigo-600 hover:underline bg-white px-2 py-1 rounded">📥 Unduh Template</button>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Format kolom: Nama Lengkap, Username, Mata Pelajaran, Password.</p>
+                <input type="file" id="excel-file-guru" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-white file:text-indigo-600 cursor-pointer mb-3">
+                <button onclick="importExcelGuru()" class="w-full py-2.5 bg-white text-indigo-600 border border-indigo-200 font-bold rounded-xl text-sm shadow-sm hover:bg-indigo-100">Proses Import Guru</button>
+            </div>`;
     }
     else if(tab === 'rekap') {
         let nilais = DB.nilais || [];
@@ -516,6 +525,39 @@ function togglePwGuru(i) {
     el.dataset.shown = shown ? '0' : '1';
 }
 function delGuru(i) { if(confirm('Hapus?')) { DB.gurus.splice(i,1); saveDB(); adminTab('guru'); } }
+
+function downloadTemplateGuru() {
+    const ws = XLSX.utils.aoa_to_sheet([
+        ["Nama Lengkap", "Username", "Mata Pelajaran", "Password"],
+        ["Bpk. Sartono S.Pd", "sartono", "Bahasa Indonesia", "123456"],
+        ["Ibu Siti Aminah S.Pd", "siti", "Matematika", "siti2026"]
+    ]);
+    ws['!cols'] = [{wch: 28}, {wch: 18}, {wch: 24}, {wch: 18}];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template_Guru"); XLSX.writeFile(wb, "Template_Guru_Quiznalys.xlsx");
+}
+
+function importExcelGuru() {
+    const fileInput = document.getElementById('excel-file-guru'); if(!fileInput.files.length) return alert("Pilih file!");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result); const wb = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+            let c = 0, skip = 0;
+            rows.forEach((row, idx) => {
+                if(idx === 0 || !row || row.length < 4) return;
+                const n = String(row[0] ?? '').trim(), u = String(row[1] ?? '').trim(), m = String(row[2] ?? '').trim(), p = String(row[3] ?? '').trim();
+                if(!n || !u || !m || !p) { skip++; return; }
+                if(DB.gurus.find(g => g.user === u)) { skip++; return; }
+                let mp = DB.mapel.find(x => x.toLowerCase() === m.toLowerCase());
+                if(!mp) { DB.mapel.push(m); mp = m; }
+                DB.gurus.push({ nama: n, user: u, pass: p, mapel: mp }); c++;
+            });
+            saveDB(); adminTab('guru');
+            alert(`Import ${c} guru berhasil!` + (skip ? `\n${skip} baris dilewati (data kurang lengkap / username sudah terpakai).` : ''));
+        } catch(err) { alert("Gagal baca file!"); }
+    }; reader.readAsArrayBuffer(fileInput.files[0]);
+}
 
 function importExcelSiswa() {
     const fileInput = document.getElementById('excel-file-siswa'); if(!fileInput.files.length) return alert("Pilih file!");
