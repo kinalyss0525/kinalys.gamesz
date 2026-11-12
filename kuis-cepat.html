@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiznalys - Interactive Learning</title>
+    <script>
+        // Terapkan tema tersimpan lebih awal supaya tidak berkedip
+        try { var _t = localStorage.getItem('qz-theme'); if(_t === 'dark' || (!_t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); } catch(e) {}
+    </script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS untuk Excel -->
@@ -110,6 +114,48 @@
             70% { transform: scale(0.9); }
             100% { transform: scale(1); opacity: 1; }
         }
+
+        /* ===== MODE GELAP ===== */
+        html.dark { color-scheme: dark; }
+        html.dark body { background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 100%); color: #e2e8f0; }
+        html.dark .card { background: rgba(30, 41, 59, 0.95); border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); }
+        html.dark .btn-secondary { background: #1e293b; color: #a5b4fc; border-color: #334155; }
+        html.dark .btn-secondary:hover { background: #312e81; border-color: #6366f1; }
+        html.dark input, html.dark select, html.dark textarea { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+        html.dark input:focus, html.dark select:focus, html.dark textarea:focus { background: #1e293b; border-color: #818cf8; box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.2); }
+        html.dark input::placeholder, html.dark textarea::placeholder { color: #64748b; }
+        html.dark .opt-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        html.dark .opt-btn:hover:not(:disabled) { background: #312e81; border-color: #818cf8; color: #e0e7ff; }
+        html.dark .bg-white, html.dark .bg-white\/95, html.dark .bg-white\/70 { background-color: rgba(30, 41, 59, 0.95); }
+        html.dark .bg-slate-50, html.dark .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.55); }
+        html.dark .bg-slate-100 { background-color: #334155; }
+        html.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.14); }
+        html.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.26); }
+        html.dark .bg-rose-50, html.dark .bg-rose-50\/50 { background-color: rgba(244, 63, 94, 0.12); }
+        html.dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.22); }
+        html.dark .bg-emerald-50, html.dark .bg-emerald-50\/50 { background-color: rgba(16, 185, 129, 0.12); }
+        html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.22); }
+        html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12); }
+        html.dark .bg-teal-100 { background-color: rgba(20, 184, 166, 0.22); }
+        html.dark .text-slate-800 { color: #f1f5f9; }
+        html.dark .text-slate-700 { color: #e2e8f0; }
+        html.dark .text-slate-600 { color: #cbd5e1; }
+        html.dark .text-slate-500 { color: #94a3b8; }
+        html.dark .text-slate-400 { color: #7c8ba1; }
+        html.dark .text-indigo-500, html.dark .text-indigo-600 { color: #a5b4fc; }
+        html.dark .text-indigo-700, html.dark .text-indigo-800 { color: #c7d2fe; }
+        html.dark .text-rose-500, html.dark .text-rose-600, html.dark .text-rose-700 { color: #fda4af; }
+        html.dark .text-emerald-600, html.dark .text-emerald-700, html.dark .text-emerald-800 { color: #6ee7b7; }
+        html.dark .text-amber-500, html.dark .text-amber-600, html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd34d; }
+        html.dark .text-teal-700 { color: #5eead4; }
+        html.dark .border-slate-100, html.dark .border-slate-200 { border-color: #334155; }
+        html.dark .border-indigo-100, html.dark .border-indigo-200, html.dark .border-indigo-300 { border-color: rgba(129, 140, 248, 0.3); }
+        html.dark .border-rose-200, html.dark .border-rose-300 { border-color: rgba(244, 63, 94, 0.35); }
+        html.dark .border-emerald-200, html.dark .border-emerald-300 { border-color: rgba(16, 185, 129, 0.35); }
+        html.dark .border-amber-200, html.dark .border-amber-300 { border-color: rgba(245, 158, 11, 0.35); }
+        html.dark .border-white\/50 { border-color: rgba(255, 255, 255, 0.08); }
+        html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+        html, body, .card { transition: background-color 0.3s ease, color 0.3s ease; }
     </style>
 </head>
 <body class="p-4 sm:p-8 flex justify-center items-start select-none" oncontextmenu="return false;">
@@ -121,6 +167,7 @@
             🚀 Quiznalys
         </h1>
         <div id="nav-buttons" class="space-x-2 mt-4 sm:mt-0 flex flex-wrap justify-center gap-y-2">
+            <button id="btn-theme" onclick="toggleTheme()" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors" title="Ganti mode terang / gelap">🌙 Gelap</button>
             <button onclick="showPage('login-guru')" class="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">Portal Guru</button>
             <button onclick="showPage('login-admin')" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Portal Admin</button>
             <button id="btn-logout" onclick="logout()" class="px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors hide">Logout</button>
@@ -360,6 +407,7 @@ function showPage(pageId) {
     document.getElementById(`page-${pageId}`).classList.remove('hide');
     document.getElementById('btn-logout').classList.toggle('hide', pageId === 'home' || pageId.startsWith('login'));
     document.getElementById('btn-keluar').classList.toggle('hide', pageId !== 'home');
+    document.getElementById('btn-music').classList.toggle('hide', pageId !== 'game');
     
     if(pageId === 'home') initHome();
     if(pageId === 'admin') adminTab('admin');
@@ -770,6 +818,7 @@ function startQuiz() {
     // Paksa masuk Fullscreen untuk keamanan ujian
     const elem = document.documentElement;
     if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => {}); }
+    Music.start(); // musik mulai saat klik tombol mulai (izin autoplay browser)
 
     session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
     G.blocked = false; G.finished = false; G.pelanggaran = 0; G.sesiKey = null; G.epoch = (G.epoch || 0) + 1; G.lock = false;
@@ -784,7 +833,7 @@ function startQuiz() {
         G.history = toArr(sv.progress.history);
         G.sesiKey = sKey;
         showPage('game');
-        if(sv.status === 'blocked') { G.blocked = true; showBlockedOverlay(); }
+        if(sv.status === 'blocked') { G.blocked = true; Music.stop(); showBlockedOverlay(); }
         else { renderQuestionPG(); }
         return;
     }
@@ -920,7 +969,7 @@ function checkAnswerPG(selectedOpt) {
 }
 
 function endQuizPG() {
-    clearInterval(G.interval); G.finished = true; hideCheatOverlay();
+    clearInterval(G.interval); G.finished = true; hideCheatOverlay(); Music.stop(); document.getElementById('btn-music').classList.add('hide');
     let finalScore = Math.round(G.score);
     if(!DB.nilais) DB.nilais = [];
     DB.nilais.push({ siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, skor: finalScore, date: new Date().toLocaleDateString() }); 
@@ -1026,7 +1075,7 @@ function showBlockedOverlay() {
 }
 
 function blockStudent() {
-    clearInterval(G.interval);
+    clearInterval(G.interval); Music.stop();
     G.epoch = (G.epoch || 0) + 1;
     if(G.lock) G.curr++;            // soal yang sudah dijawab tidak diulang
     G.lock = false;
@@ -1047,6 +1096,7 @@ function saveProgressSesi() {
 function resumeAfterUnblock() {
     hideCheatOverlay();
     G.blocked = false; G.pelanggaran = 0; G.lock = false;
+    Music.start();
     renderQuestionPG();
 }
 
@@ -1111,8 +1161,95 @@ function renderKejadianGuru(c) {
         </div>`;
 }
 
+
+/* =========================================
+   MODE GELAP / TERANG
+   ========================================= */
+function applyTheme(dark) {
+    document.documentElement.classList.toggle('dark', dark);
+    const b = document.getElementById('btn-theme');
+    if(b) b.textContent = dark ? '☀️ Terang' : '🌙 Gelap';
+}
+function toggleTheme() {
+    const dark = !document.documentElement.classList.contains('dark');
+    applyTheme(dark);
+    try { localStorage.setItem('qz-theme', dark ? 'dark' : 'light'); } catch(e) {}
+}
+
+/* =========================================
+   MUSIK LATAR (dibuat langsung oleh browser, tanpa file audio)
+   ========================================= */
+const Music = {
+    ctx: null, master: null, noise: null, timer: null, step: 0, nextTime: 0, playing: false, muted: false, VOL: 0.22,
+    bass: [48, 43, 45, 41],                                   // C - G - Am - F
+    arp: [[60, 64, 67, 72], [59, 62, 67, 71], [57, 60, 64, 69], [57, 60, 65, 69]],
+    mel: [76,0,72,0,76,79,76,0,  74,0,71,0,74,79,74,0,  72,0,76,0,81,76,72,0,  77,0,72,0,77,76,72,0],
+    mtof(n) { return 440 * Math.pow(2, (n - 69) / 12); },
+    init() {
+        if(this.ctx) return;
+        const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+        this.ctx = new AC();
+        this.master = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : this.VOL; this.master.connect(this.ctx.destination);
+        this.noise = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.1), this.ctx.sampleRate);
+        const d = this.noise.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    },
+    tone(freq, t, dur, type, vol) {
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05);
+    },
+    kick(t) {
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+        g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.2);
+    },
+    hat(t) {
+        const s = this.ctx.createBufferSource(); s.buffer = this.noise;
+        const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+        const g = this.ctx.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+        s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + 0.06);
+    },
+    playStep(i, t) {
+        const bar = Math.floor(i / 8), k = i % 8;
+        if(k === 0 || k === 4) { this.tone(this.mtof(this.bass[bar]), t, 0.45, 'sine', 0.5); this.kick(t); }
+        if(k % 2 === 1) this.hat(t);
+        this.tone(this.mtof(this.arp[bar][k % 4]), t, 0.2, 'triangle', 0.12);
+        const m = this.mel[i]; if(m) this.tone(this.mtof(m), t, 0.3, 'square', 0.06);
+    },
+    schedule() {
+        while(this.nextTime < this.ctx.currentTime + 0.6) {
+            this.playStep(this.step, this.nextTime);
+            this.nextTime += 0.25; this.step = (this.step + 1) % 32;
+        }
+    },
+    start() {
+        this.init(); if(!this.ctx) return;
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        if(this.playing) return;
+        this.playing = true; this.nextTime = this.ctx.currentTime + 0.1;
+        this.timer = setInterval(() => this.schedule(), 100);
+    },
+    stop() { clearInterval(this.timer); this.playing = false; },
+    setMuted(m) {
+        this.muted = m;
+        if(this.master) this.master.gain.setTargetAtTime(m ? 0 : this.VOL, this.ctx.currentTime, 0.05);
+        const b = document.getElementById('btn-music'); if(b) b.textContent = m ? '🔇' : '🎵';
+    }
+};
+function toggleMusic() {
+    Music.setMuted(!Music.muted);
+    try { localStorage.setItem('qz-muted', Music.muted ? '1' : '0'); } catch(e) {}
+}
+try { Music.muted = localStorage.getItem('qz-muted') === '1'; } catch(e) {}
+Music.setMuted(Music.muted);
+applyTheme(document.documentElement.classList.contains('dark'));
+
 initDB(); showPage('home');
 </script>
+<!-- Tombol musik (hanya tampil saat ujian) -->
+<button id="btn-music" onclick="toggleMusic()" class="hide fixed bottom-4 right-4 z-[90] w-12 h-12 rounded-full shadow-xl bg-white text-2xl flex items-center justify-center border border-slate-200 hover:scale-110 transition-transform" title="Musik ON/OFF">🎵</button>
 <!-- Overlay peringatan / blokir siswa -->
 <div id="cheat-overlay" class="hide fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4">
     <div id="cheat-card" class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center space-y-4"></div>
