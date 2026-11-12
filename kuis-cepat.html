@@ -536,7 +536,7 @@ function guruTab(tab) {
                     <div class="space-y-3">
                         <textarea id="g-q" class="w-full bg-white border-2 border-indigo-100 p-3 rounded-xl text-slate-800" rows="2" placeholder="Pertanyaan..."></textarea>
                         <input id="g-img" placeholder="Link Gambar (Opsional)">
-                        <div class="grid grid-cols-2 gap-2"><input id="g-a" placeholder="Opsi A (BENAR)*" class="border-emerald-300 bg-emerald-50"><input id="g-b" placeholder="Opsi B (Salah)"><input id="g-c" placeholder="Opsi C (Salah)"><input id="g-d" placeholder="Opsi D (Salah)"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><input id="g-a" placeholder="Opsi A (BENAR)*" class="border-emerald-300 bg-emerald-50"><input id="g-b" placeholder="Opsi B (Salah)"><input id="g-c" placeholder="Opsi C (Salah)"><input id="g-d" placeholder="Opsi D (Salah)"><input id="g-e" placeholder="Opsi E (Salah)" class="sm:col-span-2"></div>
                         <button onclick="addSoal()" class="w-full py-3 btn-primary font-bold text-sm">Simpan Soal</button>
                     </div>
                 </div>
@@ -567,6 +567,7 @@ function guruTab(tab) {
                                 <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">B. ${s.options[1]}</div>
                                 <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">C. ${s.options[2]}</div>
                                 <div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100">D. ${s.options[3]}</div>
+                                ${s.options[4] ? `<div class="bg-slate-50 text-slate-600 p-2 rounded-lg border border-slate-100 sm:col-span-2">E. ${s.options[4]}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -619,13 +620,18 @@ function exportNilaiGuru() {
 }
 
 function downloadTemplateSoal() {
-    const ws = XLSX.utils.aoa_to_sheet([["Pertanyaan", "Jawaban Benar", "Pengecoh 1", "Pengecoh 2", "Pengecoh 3", "Link Gambar (Opsional)"], ["Siapakah penemu bola lampu?", "Thomas Edison", "Nikola Tesla", "Albert Einstein", "Isaac Newton", ""]]);
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template_Soal"); XLSX.writeFile(wb, "Template_Soal.xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([
+        ["Pertanyaan", "Jawaban Benar (Opsi A)", "Pengecoh 1 (Opsi B)", "Pengecoh 2 (Opsi C)", "Pengecoh 3 (Opsi D)", "Pengecoh 4 (Opsi E)", "Link Gambar (Opsional)"],
+        ["Siapakah penemu bola lampu pijar?", "Thomas Alva Edison", "Nikola Tesla", "Albert Einstein", "Isaac Newton", "Alexander Graham Bell", ""],
+        ["Planet terbesar di dalam tata surya kita adalah...", "Jupiter", "Saturnus", "Uranus", "Neptunus", "Bumi", ""]
+    ]);
+    ws['!cols'] = [{wch: 45}, {wch: 26}, {wch: 22}, {wch: 22}, {wch: 22}, {wch: 22}, {wch: 28}];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template_Soal"); XLSX.writeFile(wb, "Template_Soal_Quiznalys_5_Opsi.xlsx");
 }
 function addSoal() {
-    const q = document.getElementById('g-q').value, a = document.getElementById('g-a').value, b = document.getElementById('g-b').value, c = document.getElementById('g-c').value, d = document.getElementById('g-d').value, img = document.getElementById('g-img').value.trim();
-    if(!q || !a || !b || !c || !d) return alert("Lengkapi data!");
-    if(!DB.soals) DB.soals = []; DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d], correctAnswer: a, image: img }); saveDB(); guruTab('soal');
+    const q = document.getElementById('g-q').value, a = document.getElementById('g-a').value, b = document.getElementById('g-b').value, c = document.getElementById('g-c').value, d = document.getElementById('g-d').value, e = document.getElementById('g-e').value, img = document.getElementById('g-img').value.trim();
+    if(!q || !a || !b || !c || !d || !e) return alert("Lengkapi semua 5 opsi jawaban (A, B, C, D, E)!");
+    if(!DB.soals) DB.soals = []; DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,c,d,e], correctAnswer: a, image: img }); saveDB(); guruTab('soal');
 }
 function importExcelSoal() {
     const fileInput = document.getElementById('excel-file-soal'); if(!fileInput.files.length) return alert("Pilih file!");
@@ -635,10 +641,14 @@ function importExcelSoal() {
             const data = new Uint8Array(e.target.result); const wb = XLSX.read(data, { type: 'array' });
             const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }); let c = 0; if(!DB.soals) DB.soals = [];
             rows.forEach((row, idx) => {
-                if(row.length >= 5) {
-                    let q = String(row[0]||'').trim(), a = String(row[1]||'').trim(), b = String(row[2]||'').trim(), C = String(row[3]||'').trim(), d = String(row[4]||'').trim(), img = String(row[5]||'').trim();
+                if(row.length >= 6) {
+                    let q = String(row[0]||'').trim(), a = String(row[1]||'').trim(), b = String(row[2]||'').trim(), C = String(row[3]||'').trim(), d = String(row[4]||'').trim(), e = String(row[5]||'').trim(), img = String(row[6]||'').trim();
                     if(idx === 0 && (q.toLowerCase().includes('pertanyaan') || q.toLowerCase().includes('soal'))) return;
-                    if(q && a && b && C && d) { DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,C,d], correctAnswer: a, image: img }); c++; }
+                    if(q && a && b && C && d && e) { DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,C,d,e], correctAnswer: a, image: img }); c++; }
+                } else if(row.length === 5) {
+                    let q = String(row[0]||'').trim(), a = String(row[1]||'').trim(), b = String(row[2]||'').trim(), C = String(row[3]||'').trim(), d = String(row[4]||'').trim();
+                    if(idx === 0 && (q.toLowerCase().includes('pertanyaan') || q.toLowerCase().includes('soal'))) return;
+                    if(q && a && b && C && d) { DB.soals.push({ mapel: session.data.mapel, q: q, options: [a,b,C,d], correctAnswer: a, image: '' }); c++; }
                 }
             }); saveDB(); guruTab('soal'); alert(`Import ${c} soal berhasil!`);
         } catch(err) { alert("Gagal baca file!"); }
@@ -700,13 +710,14 @@ function renderQuestionPG() {
     else { document.getElementById('g-img-container').classList.add('hide'); imgEl.src = ''; }
     
     document.getElementById('g-card').classList.remove('shake');
-    const colors = ['bg-rose-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500'];
+    const colors = ['bg-rose-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-purple-500'];
+    const labels = ['A', 'B', 'C', 'D', 'E'];
     
     document.getElementById('g-options').innerHTML = qData.opts.map((opt, i) => `
-        <button onclick="checkAnswerPG('${opt.replace(/'/g, "\\'")}')" class="opt-btn relative group overflow-hidden p-1">
+        <button onclick="checkAnswerPG('${opt.replace(/'/g, "\\'")}')" class="opt-btn relative group overflow-hidden p-1 ${qData.opts.length === 5 && i === 4 ? 'sm:col-span-2' : ''}">
             <div class="absolute inset-0 w-3 ${colors[i]} group-hover:w-full transition-all duration-300 ease-out z-0 opacity-10 group-hover:opacity-100"></div>
             <div class="relative z-10 p-4 sm:p-5 text-left flex items-center gap-3">
-                <div class="${colors[i]} text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 group-hover:bg-white group-hover:text-${colors[i].replace('bg-','')} transition-colors">${['A','B','C','D'][i]}</div>
+                <div class="${colors[i]} text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 group-hover:bg-white group-hover:text-${colors[i].replace('bg-','')} transition-colors">${labels[i]}</div>
                 <span class="text-base sm:text-lg group-hover:text-white transition-colors break-words w-full">${opt}</span>
             </div>
         </button>`).join('');
