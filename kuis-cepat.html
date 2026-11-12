@@ -246,6 +246,7 @@
                 <div class="flex flex-wrap gap-3">
                     <button onclick="guruTab('soal')" class="px-5 py-2.5 bg-white text-indigo-600 font-bold rounded-xl shadow hover:bg-indigo-50 transition-colors">📝 Kelola Soal</button>
                     <button onclick="guruTab('nilai')" class="px-5 py-2.5 bg-indigo-500 border border-indigo-400 text-white font-bold rounded-xl shadow hover:bg-indigo-400 transition-colors">📊 Nilai Siswa</button>
+                    <button onclick="guruTab('kejadian')" class="relative px-5 py-2.5 bg-rose-500 border border-rose-400 text-white font-bold rounded-xl shadow hover:bg-rose-400 transition-colors">🚨 Kejadian Siswa <span id="badge-kejadian" class="hide absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-xs font-black rounded-full min-w-[22px] h-[22px] px-1 flex items-center justify-center">0</span></button>
                 </div>
             </div>
             <div id="guru-content" class="card p-6"></div>
@@ -336,6 +337,19 @@ function initDB() {
 function saveDB() { dbRef.set(DB); }
 function refreshActivePage() {
     if(document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hide')) initHome();
+    // Siswa yang terblokir: lanjut otomatis begitu guru membuka blokir
+    if(session.role === 'siswa' && G.blocked) {
+        const sv = (DB.sesi || {})[G.sesiKey];
+        if(!sv || sv.status === 'open') resumeAfterUnblock();
+    }
+    // Guru: update badge, notifikasi & tab kejadian secara realtime
+    if(session.role === 'guru') {
+        const gp = document.getElementById('page-guru');
+        if(gp && !gp.classList.contains('hide')) {
+            updateKejadianBadge();
+            if(guruActiveTab === 'kejadian') guruTab('kejadian');
+        }
+    }
 }
 
 /* =========================================
@@ -353,7 +367,8 @@ function showPage(pageId) {
     if(pageId === 'guru') {
         document.getElementById('guru-nama-name').textContent = session.data.nama;
         document.getElementById('guru-mapel-name').textContent = session.data.mapel;
-        guruTab('soal');
+        kejadianSeenIds = null; guruActiveTab = 'soal';
+        guruTab('soal'); updateKejadianBadge();
     }
 }
 function logout() { session = { role: null, data: null }; showPage('home'); }
@@ -590,6 +605,8 @@ function exportNilaiAdmin() {
 function guruTab(tab) {
     const c = document.getElementById('guru-content');
     const myMapel = session.data.mapel;
+    guruActiveTab = tab;
+    if(tab === 'kejadian') { renderKejadianGuru(c); return; }
     
     if(tab === 'soal') {
         const mySoal = (DB.soals || []).filter(s => s.mapel === myMapel);
@@ -728,7 +745,10 @@ function delNilai(i) { if(confirm("Hapus data nilai?")) { DB.nilais.splice(i, 1)
 /* =========================================
    SISTEM ENGINE KUIS, TIMER 30S & STIKER POP-UP
    ========================================= */
-let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 30, interval: null, lock: false, history: [] };
+let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 30, interval: null, lock: false, history: [], blocked: false, finished: false, pelanggaran: 0, epoch: 0, sesiKey: null };
+const MAX_PELANGGARAN = 3; // jumlah kesempatan keluar tab sebelum siswa terblokir
+let guruActiveTab = 'soal';
+let kejadianSeenIds = null;
 
 function initHome() {
     document.getElementById('siswa-kelas').innerHTML = '<option value="">-- Pilih Kelas --</option>' + DB.kelas.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -752,6 +772,22 @@ function startQuiz() {
     if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => {}); }
 
     session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
+    G.blocked = false; G.finished = false; G.pelanggaran = 0; G.sesiKey = null; G.epoch = (G.epoch || 0) + 1; G.lock = false;
+
+    // Kalau siswa ini punya sesi tersimpan (terblokir / dibuka guru), lanjutkan dari progres terakhir
+    const sKey = sesiKey(nma, kls, mpl), sv = (DB.sesi || {})[sKey];
+    if(sv && sv.progress && sv.progress.qList) {
+        const toArr = x => Array.isArray(x) ? x : Object.values(x || {});
+        G.qList = toArr(sv.progress.qList).map(q => ({ q: q.q, opts: toArr(q.opts), correct: q.correct, image: q.image || '' }));
+        G.curr = sv.progress.curr || 0; G.score = sv.progress.score || 0;
+        G.lives = (sv.progress.lives === undefined || sv.progress.lives === null) ? 3 : sv.progress.lives;
+        G.history = toArr(sv.progress.history);
+        G.sesiKey = sKey;
+        showPage('game');
+        if(sv.status === 'blocked') { G.blocked = true; showBlockedOverlay(); }
+        else { renderQuestionPG(); }
+        return;
+    }
     G.qList = questions.sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ q: q.q, opts: [...q.options].sort(() => Math.random() - 0.5), correct: q.correctAnswer, image: q.image }));
     G.curr = 0; G.score = 0; G.lives = 3; G.history = [];
     
@@ -759,6 +795,7 @@ function startQuiz() {
 }
 
 function renderQuestionPG() {
+    if(G.blocked) return;
     if(G.curr >= G.qList.length || G.lives <= 0) return endQuizPG();
     G.lock = false; G.timer = 30.0; 
     
@@ -878,15 +915,17 @@ function checkAnswerPG(selectedOpt) {
     }
     
     document.getElementById('g-score').textContent = Math.round(G.score);
-    setTimeout(() => { G.curr++; renderQuestionPG(); }, 1600);
+    const ep = G.epoch;
+    setTimeout(() => { if(G.epoch !== ep || G.blocked) return; G.curr++; saveProgressSesi(); renderQuestionPG(); }, 1600);
 }
 
 function endQuizPG() {
-    clearInterval(G.interval);
+    clearInterval(G.interval); G.finished = true; hideCheatOverlay();
     let finalScore = Math.round(G.score);
     if(!DB.nilais) DB.nilais = [];
     DB.nilais.push({ siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, skor: finalScore, date: new Date().toLocaleDateString() }); 
     saveDB();
+    if(G.sesiKey) { dbRef.child('sesi/' + G.sesiKey).remove(); G.sesiKey = null; }
     
     document.getElementById('page-game').innerHTML = `
         <div class="card p-10 text-center space-y-6 max-w-lg mx-auto fade-in">
@@ -930,17 +969,8 @@ function showReview() {
    ========================================= */
 window.addEventListener('visibilitychange', () => {
     const gamePage = document.getElementById('page-game');
-    if(document.visibilityState === 'hidden' && session.role === 'siswa' && gamePage && !gamePage.classList.contains('hide') && G.lives > 0) {
-        alert("⚠️ PERINGATAN ANTI-CURANG!")
-
-("Kamu terdeteksi keluar dari layar kuis / berpindah tab. Nyawa dikurangi 1.");
-        G.lives--;
-        document.getElementById('g-lives').textContent = '❤️'.repeat(Math.max(0, G.lives)) + '🖤'.repeat(3 - Math.max(0, G.lives));
-        
-        if(G.lives <= 0) {
-            checkAnswerPG("Kecurangan Terdeteksi");
-            endQuizPG();
-        }
+    if(document.visibilityState === 'hidden' && session.role === 'siswa' && gamePage && !gamePage.classList.contains('hide') && !G.finished && !G.blocked && G.lives > 0) {
+        handleTabLeave();
     }
 });
 
@@ -953,7 +983,141 @@ document.addEventListener('keydown', e => {
     }
 });
 
+
+/* =========================================
+   BLOKIR SISWA & KEJADIAN (KELUAR TAB)
+   ========================================= */
+function escHTML(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function sesiKey(nama, kelas, mapel) {
+    return encodeURIComponent([kelas, nama, mapel].join('__')).replace(/[.!~*'()%]/g, c => '_' + c.charCodeAt(0).toString(16));
+}
+function kejadianList() { return Object.entries(DB.kejadian || {}).map(([id, v]) => Object.assign({ id }, v)); }
+
+function showCheatOverlay(html) { document.getElementById('cheat-card').innerHTML = html; document.getElementById('cheat-overlay').classList.remove('hide'); }
+function hideCheatOverlay() { document.getElementById('cheat-overlay').classList.add('hide'); }
+
+function handleTabLeave() {
+    G.pelanggaran = (G.pelanggaran || 0) + 1;
+    const n = G.pelanggaran, last = n >= MAX_PELANGGARAN;
+    dbRef.child('kejadian').push({
+        siswa: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel,
+        jenis: 'Keluar dari tab', ke: n, max: MAX_PELANGGARAN, status: last ? 'terblokir' : 'peringatan', waktu: Date.now()
+    });
+    if(last) blockStudent(); else showTabWarning(n);
+}
+
+function showTabWarning(n) {
+    const sisa = MAX_PELANGGARAN - n;
+    showCheatOverlay(`
+        <div class="text-6xl">⚠️</div>
+        <h3 class="text-2xl font-black font-heading text-amber-600">PERINGATAN ${n}/${MAX_PELANGGARAN}</h3>
+        <p class="text-slate-600 font-semibold">Kamu terdeteksi keluar dari tab / layar kuis.</p>
+        <p class="text-sm text-slate-500">${sisa === 1 ? '<b class="text-rose-600">Ini kesempatan terakhir!</b> Jika keluar tab sekali lagi, kamu akan terblokir.' : `Sisa kesempatan: <b>${sisa}</b>. Jika habis, kamu akan terblokir dan harus lapor ke guru.`}</p>
+        <button onclick="hideCheatOverlay()" class="w-full py-3 btn-primary font-bold">Saya Mengerti, Lanjut Ujian</button>`);
+}
+
+function showBlockedOverlay() {
+    showCheatOverlay(`
+        <div class="text-6xl">🔒</div>
+        <h3 class="text-2xl font-black font-heading text-rose-600">AKSES TERBLOKIR</h3>
+        <p class="text-lg font-bold text-slate-800">Anda sudah terblokir harap lapor ke guru untuk memulai kembali</p>
+        <p class="text-sm text-slate-500">Jawaban dan skormu aman. Setelah guru membuka blokir, ujian lanjut dari soal terakhir.</p>
+        <p class="text-xs text-slate-400 animate-pulse">Menunggu guru membuka blokir...</p>`);
+}
+
+function blockStudent() {
+    clearInterval(G.interval);
+    G.epoch = (G.epoch || 0) + 1;
+    if(G.lock) G.curr++;            // soal yang sudah dijawab tidak diulang
+    G.lock = false;
+    G.sesiKey = sesiKey(session.data.nama, session.data.kelas, session.data.mapel);
+    dbRef.child('sesi/' + G.sesiKey).set(JSON.parse(JSON.stringify({
+        status: 'blocked', nama: session.data.nama, kelas: session.data.kelas, mapel: session.data.mapel, waktu: Date.now(),
+        progress: { qList: G.qList, curr: G.curr, score: G.score, lives: G.lives, history: G.history }
+    })));
+    G.blocked = true;
+    showBlockedOverlay();
+}
+
+function saveProgressSesi() {
+    if(!G.sesiKey) return;
+    dbRef.child('sesi/' + G.sesiKey + '/progress').set(JSON.parse(JSON.stringify({ qList: G.qList, curr: G.curr, score: G.score, lives: G.lives, history: G.history })));
+}
+
+function resumeAfterUnblock() {
+    hideCheatOverlay();
+    G.blocked = false; G.pelanggaran = 0; G.lock = false;
+    renderQuestionPG();
+}
+
+/* --- Sisi guru --- */
+function bukaBlokir(key) {
+    const sv = (DB.sesi || {})[key]; if(!sv) return;
+    if(!confirm(`Buka blokir ${sv.nama}? Siswa bisa melanjutkan ujian dari soal terakhir.`)) return;
+    dbRef.child('sesi/' + key + '/status').set('open');
+    dbRef.child('kejadian').push({ siswa: sv.nama, kelas: sv.kelas, mapel: sv.mapel, jenis: 'Blokir dibuka guru', status: 'dibuka', waktu: Date.now() });
+}
+function hapusRiwayatKejadian() {
+    const mine = kejadianList().filter(e => e.mapel === session.data.mapel);
+    if(!mine.length) return;
+    if(!confirm('Hapus semua riwayat kejadian untuk mapel ini?')) return;
+    const upd = {}; mine.forEach(e => { upd[e.id] = null; });
+    dbRef.child('kejadian').update(upd);
+}
+function hideToastKejadian() { document.getElementById('toast-kejadian').classList.add('hide'); }
+function updateKejadianBadge() {
+    if(session.role !== 'guru') return;
+    const mapel = session.data.mapel;
+    const events = kejadianList().filter(e => e.mapel === mapel);
+    const blockedN = Object.values(DB.sesi || {}).filter(sv => sv && sv.mapel === mapel && sv.status === 'blocked').length;
+    const badge = document.getElementById('badge-kejadian');
+    badge.textContent = blockedN; badge.classList.toggle('hide', blockedN === 0);
+    if(kejadianSeenIds !== null) {
+        const fresh = events.filter(e => !kejadianSeenIds.has(e.id) && (e.status === 'peringatan' || e.status === 'terblokir')).sort((a, b) => (b.waktu || 0) - (a.waktu || 0));
+        if(fresh.length) {
+            const e = fresh[0], t = document.getElementById('toast-kejadian');
+            t.innerHTML = `🚨 ${escHTML(e.siswa)} (${escHTML(e.kelas)}) keluar dari tab!<br><span class="font-normal">${e.status === 'terblokir' ? 'Siswa TERBLOKIR, butuh akses guru.' : `Peringatan ${e.ke}/${e.max}`} • klik untuk lihat</span>`;
+            t.classList.remove('hide'); clearTimeout(updateKejadianBadge.tm); updateKejadianBadge.tm = setTimeout(hideToastKejadian, 8000);
+        }
+    }
+    kejadianSeenIds = new Set(events.map(e => e.id));
+}
+function renderKejadianGuru(c) {
+    const mapel = session.data.mapel;
+    const blocked = Object.entries(DB.sesi || {}).filter(([k, sv]) => sv && sv.mapel === mapel && sv.status === 'blocked');
+    const events = kejadianList().filter(e => e.mapel === mapel).sort((a, b) => (b.waktu || 0) - (a.waktu || 0));
+    const fmt = t => t ? new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+    const lbl = e => e.status === 'terblokir' ? `Keluar dari tab - <b>TERBLOKIR</b> (kesempatan ${e.ke}/${e.max} habis)` : e.status === 'peringatan' ? `Keluar dari tab - Peringatan ${e.ke}/${e.max}` : escHTML(e.jenis || 'Kejadian');
+    const clr = e => e.status === 'terblokir' ? 'bg-rose-50 border-rose-200 text-rose-700' : e.status === 'peringatan' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700';
+    c.innerHTML = `
+        <h3 class="font-bold text-xl text-slate-800 mb-4">🔒 Siswa Terblokir <span class="bg-rose-100 text-rose-700 text-sm px-3 py-1 rounded-full ml-2">${blocked.length}</span></h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            ${blocked.length ? blocked.map(([k, sv]) => `
+                <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex justify-between items-center gap-3">
+                    <div><p class="font-bold text-slate-800">${escHTML(sv.nama)}</p><p class="text-sm text-slate-500">Kelas ${escHTML(sv.kelas)} • ${fmt(sv.waktu)}</p></div>
+                    <button onclick="bukaBlokir('${k}')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow shrink-0">🔓 Buka Blokir</button>
+                </div>`).join('') : '<div class="md:col-span-2 text-center p-6 bg-slate-50 rounded-2xl text-slate-400 border border-dashed border-slate-200">Tidak ada siswa yang sedang terblokir ✅</div>'}
+        </div>
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+            <h3 class="font-bold text-xl text-slate-800">🚨 Riwayat Kejadian <span class="bg-slate-100 text-slate-600 text-sm px-3 py-1 rounded-full ml-2">${events.length}</span></h3>
+            <button onclick="hapusRiwayatKejadian()" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">🗑 Hapus Riwayat</button>
+        </div>
+        <div class="space-y-3">
+            ${events.length ? events.map(e => `
+                <div class="border p-4 rounded-2xl ${clr(e)}">
+                    <div class="flex flex-wrap justify-between gap-2"><p class="font-bold">${escHTML(e.siswa)} <span class="font-normal text-sm opacity-80">• Kelas ${escHTML(e.kelas)}</span></p><p class="text-xs opacity-80">${fmt(e.waktu)}</p></div>
+                    <p class="text-sm mt-1">${lbl(e)}</p>
+                </div>`).join('') : '<div class="text-center p-8 bg-slate-50 rounded-2xl text-slate-400 border border-dashed border-slate-200">Belum ada kejadian.</div>'}
+        </div>`;
+}
+
 initDB(); showPage('home');
 </script>
+<!-- Overlay peringatan / blokir siswa -->
+<div id="cheat-overlay" class="hide fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="cheat-card" class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center space-y-4"></div>
+</div>
+<!-- Notifikasi kejadian untuk guru -->
+<div id="toast-kejadian" class="hide fixed top-4 right-4 z-[100] max-w-sm cursor-pointer bg-rose-600 text-white px-5 py-4 rounded-2xl shadow-2xl fade-in text-sm font-semibold" onclick="guruTab('kejadian'); hideToastKejadian();"></div>
 </body>
 </html>
