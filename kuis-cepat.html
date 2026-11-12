@@ -426,7 +426,7 @@ function adminTab(tab) {
     }
     else if(tab === 'guru') {
         html = `<h3 class="font-bold text-lg mb-4">Daftar Akun Guru</h3>
-            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div><p class="font-bold text-lg">${g.nama}</p><p class="text-sm text-slate-500">User: ${g.user}</p><p class="text-sm text-slate-500 mb-2 flex items-center gap-2">Password: <span id="pw-guru-${i}" class="font-mono font-semibold text-slate-700">••••••</span><button onclick="togglePwGuru(${i})" class="text-base leading-none" title="Lihat/Sembunyikan password">👁️</button></p><span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>`;
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div class="space-y-1"><p class="text-sm text-slate-500">Nama Lengkap: <span class="font-bold text-slate-800">${g.nama}</span></p><p class="text-sm text-slate-500">Username: <span class="font-semibold text-slate-800">${g.user}</span></p><p class="text-sm text-slate-500">Password: <span class="font-mono font-semibold text-slate-800">${g.pass}</span></p><p class="text-sm text-slate-500">Mata Pelajaran: <span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></p></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>`;
     }
     else if(tab === 'rekap') {
         let nilais = DB.nilais || [];
