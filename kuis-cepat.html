@@ -370,7 +370,6 @@ function initDB() {
         const serverData = snapshot.val();
         if (serverData) {
             DB = serverData;
-            // Pastikan array dasar selalu ada agar tidak error
             if(!DB.admins) DB.admins = [{ user: 'admin', pass: 'admin' }];
             if(!DB.mapel) DB.mapel = [];
             if(!DB.kelas) DB.kelas = [];
@@ -379,14 +378,12 @@ function initDB() {
             if(!DB.soals) DB.soals = [];
             if(!DB.nilais) DB.nilais = [];
         } else { 
-            // Inisialisasi awal ke server jika kosong total
             saveDB(); 
         }
         refreshActivePage();
     });
 }
 
-// Fungsi Simpan Aman (Menggunakan .update() untuk mencegah overwrite tak sengaja)
 function saveDB() { 
     dbRef.set(DB); 
 }
