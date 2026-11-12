@@ -99,9 +99,20 @@
         
         .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
+
+        /* Stiker Popup Animasi */
+        .sticker-popup {
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.1); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
-<body class="p-4 sm:p-8 flex justify-center items-start">
+<body class="p-4 sm:p-8 flex justify-center items-start select-none" oncontextmenu="return false;">
 
 <div id="app" class="w-full max-w-5xl space-y-6 fade-in">
     <!-- Header -->
@@ -144,7 +155,6 @@
                     <select id="siswa-mapel"><option value="">-- Mapel --</option></select>
                 </div>
                 <button onclick="startQuiz()" class="w-full py-4 mt-2 font-bold text-lg btn-primary">MULAI KUIS SEKARANG</button>
-                <a href="index.html" class="w-full py-3.5 mt-2 font-semibold text-center block text-slate-600 hover:text-rose-600 bg-slate-200/70 hover:bg-rose-50 rounded-xl transition-all border border-slate-200">🚪 Keluar ke Halaman Utama (index.html)</a>
             </div>
         </div>
 
@@ -242,7 +252,17 @@
         </div>
 
         <!-- Area Game / Kuis -->
-        <div id="page-game" class="hide space-y-6 fade-in max-w-3xl mx-auto">
+        <div id="page-game" class="hide space-y-6 fade-in max-w-3xl mx-auto relative">
+            
+            <!-- STIKER POP-UP INTERAKTIF -->
+            <div id="sticker-container" class="absolute inset-0 z-50 pointer-events-none flex items-center justify-center hide">
+                <div id="sticker-card" class="bg-white/95 backdrop-blur-md px-8 py-6 rounded-3xl shadow-2xl border-4 text-center sticker-popup space-y-2">
+                    <div id="sticker-emoji" class="text-6xl">🎉</div>
+                    <h3 id="sticker-title" class="text-2xl font-black font-heading">BENAR SEKALI!</h3>
+                    <p id="sticker-desc" class="text-sm font-semibold text-slate-600">+ Poin Bertambah!</p>
+                </div>
+            </div>
+
             <div class="flex justify-between items-center font-bold text-sm card p-4 border-b-4 border-indigo-500">
                 <div class="flex items-center gap-2">
                     <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full">Soal <span id="g-curr" class="text-indigo-600">1</span>/<span id="g-total">10</span></span>
@@ -409,17 +429,12 @@ function adminTab(tab) {
     }
     else if(tab === 'rekap') {
         let nilais = DB.nilais || [];
-        
-        // Ambil nilai TERBAIK per siswa per mapel secara otomatis untuk rekap bersih
         let bestMap = {};
         nilais.forEach(n => {
             let key = n.siswa + "_" + n.mapel;
-            if(!bestMap[key] || n.skor > bestMap[key].skor) {
-                bestMap[key] = n;
-            }
+            if(!bestMap[key] || n.skor > bestMap[key].skor) { bestMap[key] = n; }
         });
         let uniqueBestNilais = Object.values(bestMap);
-
         let topGlobal = [...uniqueBestNilais].sort((a,b) => b.skor - a.skor).slice(0, 10);
         
         html = `<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -440,9 +455,7 @@ function adminTab(tab) {
                 </table>
             </div>`;
 
-        // Rekap per Mata Pelajaran (Terpisah)
         html += `<h3 class="font-bold text-xl text-slate-800 mb-4">📚 Rekap Nilai Per Mata Pelajaran (Nilai Terbaik Siswa)</h3>`;
-        
         let mapels = DB.mapel || [];
         let hasMapelData = false;
         
@@ -480,7 +493,6 @@ function adminTab(tab) {
                 </div>`;
             }
         });
-
         if(!hasMapelData) {
             html += `<div class="text-center p-8 bg-slate-50 rounded-2xl text-slate-400 border border-dashed border-slate-200">Belum ada nilai siswa per mata pelajaran.</div>`;
         }
@@ -577,14 +589,11 @@ function guruTab(tab) {
             </div>`;
     }
     else if(tab === 'nilai') {
-        // Ambil nilai terbaik per siswa untuk kelas guru ini
         let rawNilai = (DB.nilais || []).filter(n => n.mapel === myMapel);
         let bestMap = {};
         rawNilai.forEach((n, idx) => {
             let key = n.siswa;
-            if(!bestMap[key] || n.skor > bestMap[key].skor) {
-                bestMap[key] = { ...n, originalIndex: idx };
-            }
+            if(!bestMap[key] || n.skor > bestMap[key].skor) { bestMap[key] = { ...n, originalIndex: idx }; }
         });
         const myNilai = Object.values(bestMap).sort((a,b) => b.skor - a.skor);
 
@@ -667,9 +676,9 @@ function delNilai(i) { if(confirm("Hapus data nilai?")) { DB.nilais.splice(i, 1)
 
 
 /* =========================================
-   SISTEM ENGINE KUIS & ANTI-CURANG
+   SISTEM ENGINE KUIS, TIMER 30S & STIKER POP-UP
    ========================================= */
-let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 15, interval: null, lock: false, history: [] };
+let G = { qList: [], curr: 0, score: 0, lives: 3, timer: 30, interval: null, lock: false, history: [] };
 
 function initHome() {
     document.getElementById('siswa-kelas').innerHTML = '<option value="">-- Pilih Kelas --</option>' + DB.kelas.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -688,6 +697,10 @@ function startQuiz() {
     const questions = (DB.soals || []).filter(s => s.mapel === mpl);
     if(questions.length === 0) return alert(`Belum ada soal untuk ${mpl}.`);
     
+    // Paksa masuk Fullscreen untuk keamanan ujian
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => {}); }
+
     session = { role: 'siswa', data: { nama: nma, kelas: kls, mapel: mpl } };
     G.qList = questions.sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ q: q.q, opts: [...q.options].sort(() => Math.random() - 0.5), correct: q.correctAnswer, image: q.image }));
     G.curr = 0; G.score = 0; G.lives = 3; G.history = [];
@@ -697,7 +710,7 @@ function startQuiz() {
 
 function renderQuestionPG() {
     if(G.curr >= G.qList.length || G.lives <= 0) return endQuizPG();
-    G.lock = false; G.timer = 15.0; 
+    G.lock = false; G.timer = 30.0; 
     
     document.getElementById('g-curr').textContent = G.curr + 1;
     document.getElementById('g-total').textContent = G.qList.length;
@@ -707,9 +720,16 @@ function renderQuestionPG() {
     const qData = G.qList[G.curr];
     document.getElementById('g-question').textContent = qData.q;
     
+    // KONDISIONAL GAMBAR DINAMIS (Jika tidak ada, disembunyikan total)
+    const imgContainer = document.getElementById('g-img-container');
     const imgEl = document.getElementById('g-img');
-    if(qData.image) { imgEl.src = qData.image; document.getElementById('g-img-container').classList.remove('hide'); } 
-    else { document.getElementById('g-img-container').classList.add('hide'); imgEl.src = ''; }
+    if(qData.image && qData.image.trim() !== '') {
+        imgEl.src = qData.image.trim();
+        imgContainer.classList.remove('hide');
+    } else {
+        imgEl.src = '';
+        imgContainer.classList.add('hide');
+    }
     
     document.getElementById('g-card').classList.remove('shake');
     const colors = ['bg-rose-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-purple-500'];
@@ -729,11 +749,46 @@ function renderQuestionPG() {
 
 function tickPG() {
     G.timer -= 0.05;
-    const pct = Math.max(0, (G.timer / 15) * 100);
+    const pct = Math.max(0, (G.timer / 30) * 100);
     const bar = document.getElementById('g-time');
     bar.style.width = pct + '%';
-    bar.className = G.timer < 5 ? 'h-full transition-all ease-linear bg-rose-500' : 'h-full transition-all ease-linear bg-gradient-to-r from-cyan-400 to-indigo-500';
+    bar.className = G.timer < 10 ? 'h-full transition-all ease-linear bg-rose-500' : 'h-full transition-all ease-linear bg-gradient-to-r from-cyan-400 to-indigo-500';
     if(G.timer <= 0) checkAnswerPG(null);
+}
+
+// Fungsi Menampilkan Stiker Pop-up Interaktif
+function showSticker(isCorrect, isTimeout = false) {
+    const container = document.getElementById('sticker-container');
+    const card = document.getElementById('sticker-card');
+    const emoji = document.getElementById('sticker-emoji');
+    const title = document.getElementById('sticker-title');
+    const desc = document.getElementById('sticker-desc');
+
+    container.classList.remove('hide');
+
+    if(isTimeout) {
+        emoji.textContent = "⏰";
+        title.textContent = "WAKTU HABIS!";
+        title.className = "text-2xl font-black font-heading text-amber-500";
+        card.className = "bg-white/95 backdrop-blur-md px-8 py-6 rounded-3xl shadow-2xl border-4 border-amber-300 text-center sticker-popup space-y-2";
+        desc.textContent = "Sayang sekali, waktu menjawab habis.";
+    } else if(isCorrect) {
+        emoji.textContent = "🎉";
+        title.textContent = "BENAR SEKALI!";
+        title.className = "text-2xl font-black font-heading text-emerald-600";
+        card.className = "bg-white/95 backdrop-blur-md px-8 py-6 rounded-3xl shadow-2xl border-4 border-emerald-300 text-center sticker-popup space-y-2";
+        desc.textContent = "+ Poin Kecepatan Bertambah! 🔥";
+    } else {
+        emoji.textContent = "❌";
+        title.textContent = "KURANG TEPAT!";
+        title.className = "text-2xl font-black font-heading text-rose-600";
+        card.className = "bg-white/95 backdrop-blur-md px-8 py-6 rounded-3xl shadow-2xl border-4 border-rose-300 text-center sticker-popup space-y-2";
+        desc.textContent = "Nyawa berkurang 1! Hati-hati ya.";
+    }
+
+    setTimeout(() => {
+        container.classList.add('hide');
+    }, 1200);
 }
 
 function checkAnswerPG(selectedOpt) {
@@ -741,12 +796,16 @@ function checkAnswerPG(selectedOpt) {
     
     const qData = G.qList[G.curr];
     const isCorrect = selectedOpt === qData.correct;
+    const isTimeout = (selectedOpt === null);
     
     let ansStatus = selectedOpt;
-    if(selectedOpt === null) ansStatus = "Waktu Habis";
+    if(isTimeout) ansStatus = "Waktu Habis";
     else if(selectedOpt === "Kecurangan Terdeteksi") ansStatus = "Kecurangan (Pindah Tab)";
     G.history.push({ q: qData.q, correct: qData.correct, selected: ansStatus });
     
+    // Tampilkan stiker pop-up
+    showSticker(isCorrect, isTimeout);
+
     document.querySelectorAll('.opt-btn').forEach(b => {
         b.className = 'opt-btn relative p-1';
         const textSpan = b.querySelector('span').textContent;
@@ -761,11 +820,15 @@ function checkAnswerPG(selectedOpt) {
         } else { b.style.opacity = '0.4'; }
     });
     
-    if(isCorrect) { G.score += (100 + Math.max(0, Math.round(G.timer * 10))); } 
-    else { G.lives--; document.getElementById('g-card').classList.add('shake'); }
+    if(isCorrect) { 
+        G.score += (100 + Math.max(0, Math.round(G.timer * 5))); 
+    } else { 
+        G.lives--; 
+        document.getElementById('g-card').classList.add('shake'); 
+    }
     
     document.getElementById('g-score').textContent = Math.round(G.score);
-    setTimeout(() => { G.curr++; renderQuestionPG(); }, 1800);
+    setTimeout(() => { G.curr++; renderQuestionPG(); }, 1600);
 }
 
 function endQuizPG() {
@@ -812,10 +875,15 @@ function showReview() {
     `).join('');
 }
 
+/* =========================================
+   SISTEM ANTI-CURANG SUPER KETAT
+   ========================================= */
 window.addEventListener('visibilitychange', () => {
     const gamePage = document.getElementById('page-game');
     if(document.visibilityState === 'hidden' && session.role === 'siswa' && gamePage && !gamePage.classList.contains('hide') && G.lives > 0) {
-        alert("⚠️ ANTI-CURANG TERDETEKSI!\n\nKamu terdeteksi keluar dari layar kuis atau berpindah tab browser. Nyawa kamu dikurangi 1.");
+        alert("⚠️ PERINGATAN ANTI-CURANG!")
+
+("Kamu terdeteksi keluar dari layar kuis / berpindah tab. Nyawa dikurangi 1.");
         G.lives--;
         document.getElementById('g-lives').textContent = '❤️'.repeat(Math.max(0, G.lives)) + '🖤'.repeat(3 - Math.max(0, G.lives));
         
@@ -823,6 +891,15 @@ window.addEventListener('visibilitychange', () => {
             checkAnswerPG("Kecurangan Terdeteksi");
             endQuizPG();
         }
+    }
+});
+
+// Cegah klik kanan & shortcut inspeksi
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+    if (e.key === 'F12' || (e.ctrlKey && (e.key === 'u' || e.key === 'c' || e.key === 's' || e.key === 'i'))) {
+        e.preventDefault();
+        alert("Fitur ini dikunci demi integritas ujian!");
     }
 });
 
