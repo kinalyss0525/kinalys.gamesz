@@ -426,7 +426,7 @@ function adminTab(tab) {
     }
     else if(tab === 'guru') {
         html = `<h3 class="font-bold text-lg mb-4">Daftar Akun Guru</h3>
-            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div><p class="font-bold text-lg">${g.nama}</p><p class="text-sm text-slate-500 mb-2">${g.user}</p><span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>`;
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.gurus.map((g, i) => `<li class="bg-slate-50 p-4 rounded-2xl flex justify-between items-start border border-slate-200"><div><p class="font-bold text-lg">${g.nama}</p><p class="text-sm text-slate-500">User: ${g.user}</p><p class="text-sm text-slate-500 mb-2 flex items-center gap-2">Password: <span id="pw-guru-${i}" class="font-mono font-semibold text-slate-700">••••••</span><button onclick="togglePwGuru(${i})" class="text-base leading-none" title="Lihat/Sembunyikan password">👁️</button></p><span class="text-xs font-bold text-teal-700 bg-teal-100 px-2 py-1 rounded-md">${g.mapel}</span></div><button onclick="delGuru(${i})" class="text-rose-500">✖</button></li>`).join('')}</ul>`;
     }
     else if(tab === 'rekap') {
         let nilais = DB.nilais || [];
@@ -508,6 +508,13 @@ function addKelas() { const v = document.getElementById('new-kelas').value; if(v
 function delKelas(i) { DB.kelas.splice(i,1); saveDB(); adminTab('kelas'); }
 function addSiswa() { const n = document.getElementById('new-siswa-nama').value.trim(), k = document.getElementById('new-siswa-kelas').value; if(n && k) { DB.siswa.push({nama:n, kelas:k}); saveDB(); adminTab('siswa'); } }
 function delSiswa(i) { DB.siswa.splice(i,1); saveDB(); adminTab('siswa'); }
+function togglePwGuru(i) {
+    const el = document.getElementById('pw-guru-' + i);
+    if(!el) return;
+    const shown = el.dataset.shown === '1';
+    el.textContent = shown ? '••••••' : DB.gurus[i].pass;
+    el.dataset.shown = shown ? '0' : '1';
+}
 function delGuru(i) { if(confirm('Hapus?')) { DB.gurus.splice(i,1); saveDB(); adminTab('guru'); } }
 
 function importExcelSiswa() {
