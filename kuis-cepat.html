@@ -113,6 +113,7 @@
             <button onclick="showPage('login-guru')" class="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">Portal Guru</button>
             <button onclick="showPage('login-admin')" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Portal Admin</button>
             <button id="btn-logout" onclick="logout()" class="px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors hide">Logout</button>
+            <a href="index.html" class="px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1">🚪 Keluar</a>
         </div>
     </header>
 
@@ -143,6 +144,7 @@
                     <select id="siswa-mapel"><option value="">-- Mapel --</option></select>
                 </div>
                 <button onclick="startQuiz()" class="w-full py-4 mt-2 font-bold text-lg btn-primary">MULAI KUIS SEKARANG</button>
+                <a href="index.html" class="w-full py-3.5 mt-2 font-semibold text-center block text-slate-600 hover:text-rose-600 bg-slate-200/70 hover:bg-rose-50 rounded-xl transition-all border border-slate-200">🚪 Keluar ke Halaman Utama (index.html)</a>
             </div>
         </div>
 
@@ -714,7 +716,7 @@ function renderQuestionPG() {
     const labels = ['A', 'B', 'C', 'D', 'E'];
     
     document.getElementById('g-options').innerHTML = qData.opts.map((opt, i) => `
-        <button onclick="checkAnswerPG('${opt.replace(/'/g, "\\'")}')" class="opt-btn relative group overflow-hidden p-1 ${qData.opts.length === 5 && i === 4 ? 'sm:col-span-2' : ''}">
+        <button onclick="checkAnswerPG('${opt.replace(/'/g, "\'")}')" class="opt-btn relative group overflow-hidden p-1 ${qData.opts.length === 5 && i === 4 ? 'sm:col-span-2' : ''}">
             <div class="absolute inset-0 w-3 ${colors[i]} group-hover:w-full transition-all duration-300 ease-out z-0 opacity-10 group-hover:opacity-100"></div>
             <div class="relative z-10 p-4 sm:p-5 text-left flex items-center gap-3">
                 <div class="${colors[i]} text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 group-hover:bg-white group-hover:text-${colors[i].replace('bg-','')} transition-colors">${labels[i]}</div>
